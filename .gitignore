@@ -1,0 +1,71 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.tsbuildinfo
+src-tauri/target
+src-tauri/target/release
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Wrangler
+.wrangler
+.dev.vars
+
+# Docker runtime configuration
+.env
+.env.*
+!.env.docker.example
+data/
+# Source data modules (e.g. the Credits developer list) are tracked.
+!src/data/
+
+# Test Data
+test_data_*.json
+/media
+
+# Browser E2E
+.e2e/
+playwright-report/
+test-results/
+blob-report/
+
+# --- Flutter / Dart -----------------------------------------------------------
+flutter_app/.dart_tool/
+flutter_app/build/
+flutter_app/dist/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/android/.gradle/
+flutter_app/android/local.properties
+flutter_app/android/app/debug/
+flutter_app/android/app/profile/
+flutter_app/android/app/release/
+flutter_app/rust/target/
+flutter_app/rust/Cargo.lock.bak
+*.iml
+.packages
+
+# --- Local tooling / editor state --------------------------------------------
+.workbuddy/
+.claude/
+.cursor/
+.DS_Store
