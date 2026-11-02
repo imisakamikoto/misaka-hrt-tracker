@@ -1,4 +1,4 @@
-package com.oyama.hrt_tracker
+package jp.misaka.hrt
 
 import android.content.ComponentName
 import android.content.Intent
@@ -85,6 +85,6 @@ class MainActivity : FlutterActivity() {
     }
 
     companion object {
-        private const val CHANNEL = "com.oyama.hrt_tracker/boot"
+        private const val CHANNEL = "jp.misaka.hrt/boot"
     }
 }

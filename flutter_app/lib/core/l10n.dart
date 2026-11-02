@@ -367,6 +367,11 @@ class L10n {
     'settings.showIntro': 'Show the introduction again',
     'settings.aboutBody': 'An offline tracker for hormone replacement therapy. Everything stays on this phone: there is no account, no server and no analytics.',
     'settings.modelCredit': 'The estradiol model follows PKcore.swift and PKparameter.swift by @LaoZhong-Mihari (HRT-Recorder-PKcomponent-Test).',
+    'settings.upstreamTitle': 'Upstream project',
+    'settings.upstreamCredit': 'Based on Oyama\'s HRT Tracker by Joseph Smirnova Oyama (@SmirnovaOyama), used under the MIT License. The Android rewrite adds the Flutter interface and the Rust core.',
+    'settings.licenseLine':
+        'Copyright (c) 2025 Joseph Smirnova Oyama (Oyama\'s HRT Tracker)\n'
+        'Copyright (c) 2026 Misaka hrt记录器 contributors\n\n',
     'settings.license': 'MIT License',
     'backup.saveToFile': 'Save to a file',
     'backup.share': 'Share',
@@ -693,6 +698,11 @@ class L10n {
     'settings.showIntro': '再看一次介绍',
     'settings.aboutBody': '一个离线的 HRT 记录工具。一切都留在这台手机上：没有账号、没有服务器、没有统计。',
     'settings.modelCredit': '雌二醇模型来自 @LaoZhong-Mihari 的 PKcore.swift 与 PKparameter.swift（HRT-Recorder-PKcomponent-Test）。',
+    'settings.upstreamTitle': '原项目',
+    'settings.upstreamCredit': '本项目基于 Joseph Smirnova Oyama（@SmirnovaOyama）的 Oyama\'s HRT Tracker，以 MIT 许可证发布。Android 版由 Flutter 界面与 Rust 内核重写而来。',
+    'settings.licenseLine':
+        'Copyright (c) 2025 Joseph Smirnova Oyama（Oyama\'s HRT Tracker）\n'
+        'Copyright (c) 2026 Misaka hrt记录器 contributors\n\n',
     'settings.license': 'MIT 许可证',
     'backup.saveToFile': '保存为文件',
     'backup.share': '分享',

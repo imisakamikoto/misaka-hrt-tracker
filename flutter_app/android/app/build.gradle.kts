@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.oyama.hrt_tracker"
+    namespace = "jp.misaka.hrt"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.oyama.hrt_tracker"
+        applicationId = "jp.misaka.hrt"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

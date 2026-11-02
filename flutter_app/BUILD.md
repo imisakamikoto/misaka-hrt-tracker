@@ -58,4 +58,4 @@ APK on your own phone. Before publishing anywhere, create a keystore and point
 
 ## Package
 
-`com.oyama.hrt_tracker` — minSdk 24, targetSdk 36, no internet permission.
+`jp.misaka.hrt` — minSdk 24, targetSdk 36, no internet permission.

@@ -558,6 +558,29 @@ class AboutPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    l10n.t('settings.upstreamTitle'),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(l10n.t('settings.upstreamCredit')),
+                  const SizedBox(height: 8),
+                  SelectableText(
+                    'github.com/xunxunProjects/Oyama-s-HRT-Tracker',
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text('Model', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   Text(l10n.t('settings.modelCredit')),
@@ -584,12 +607,12 @@ class AboutPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Copyright (c) 2024-2026 Misaka hrt记录器 contributors\n\n'
-                    'Permission is hereby granted, free of charge, to any person obtaining a copy of this software '
-                    'and associated documentation files (the "Software"), to deal in the Software without '
-                    'restriction, including without limitation the rights to use, copy, modify, merge, publish, '
-                    'distribute, sublicense, and/or sell copies of the Software, subject to the condition that '
-                    'the above copyright notice and this permission notice are included in all copies.',
+                    l10n.t('settings.licenseLine') +
+                        'Permission is hereby granted, free of charge, to any person obtaining a copy of this software '
+                            'and associated documentation files (the "Software"), to deal in the Software without '
+                            'restriction, including without limitation the rights to use, copy, modify, merge, publish, '
+                            'distribute, sublicense, and/or sell copies of the Software, subject to the condition that '
+                            'the above copyright notice and this permission notice are included in all copies.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],

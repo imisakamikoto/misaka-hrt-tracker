@@ -60,19 +60,19 @@ void main() {
     );
     final text = jsonEncode(
       BackupCodec.buildCompleteBundle(
-      activeMode: 'transfem',
-      modes: {
-        'transfem': ModeData(doses: [event]),
-        'transmasc': ModeData(),
-      },
-      weight: 57,
-      pkParams: null,
-      calibrationMethod: 'off',
-      calibrationHistory: 'retrospective',
-      theme: 'dark',
-      language: 'zh',
-      showPrediction: false,
-      hideSiteLabel: false,
+        activeMode: 'transfem',
+        modes: {
+          'transfem': ModeData(doses: [event]),
+          'transmasc': ModeData(),
+        },
+        weight: 57,
+        pkParams: null,
+        calibrationMethod: 'off',
+        calibrationHistory: 'retrospective',
+        theme: 'dark',
+        language: 'zh',
+        showPrediction: false,
+        hideSiteLabel: false,
         supplyLeadDays: 7,
       ),
     );

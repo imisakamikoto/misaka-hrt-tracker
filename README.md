@@ -1,377 +1,80 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./docs/images/hero-dark.png" />
-    <img src="./docs/images/hero-light.png" alt="Oyama's HRT Tracker on a phone: the current estimated estradiol level, today's dose and the hormone level timeline, next to a month of estradiol levels" />
-  </picture>
-</p>
+# Misaka hrt记录器
 
-<p align="center">
-  <b>English</b>
-  &nbsp;&nbsp;&nbsp;
-  <a href="./README.zh-CN.md">简体中文</a>
-</p>
+离线运行的 Android HRT 记录与血药浓度估算应用。界面用 Flutter（Material 3），药代动力学模型用 Rust 写成独立的 `libhrt_core.so`，所有数据只保存在手机本地：没有账号、没有服务器，**APK 不申请任何网络权限**。
 
-<p align="center">
-  Log your HRT doses and see the hormone levels they produce. Private, open and free.
-</p>
+**English**: an offline HRT tracker and concentration modeller for Android, built with Flutter (Material 3) and a Rust pharmacokinetic core. Everything stays on the device; the release build requests no network permission at all.
 
-<p align="center">
-  <a href="https://hrt.mahiro.uk"><b>Open in your browser</b></a>
-  &nbsp;&nbsp;&nbsp;
-  <a href="https://github.com/xunxunProjects/Oyama-s-HRT-Tracker/releases/latest"><b>macOS and Windows</b></a>
-  &nbsp;&nbsp;&nbsp;
-  <a href="#docker"><b>Self-host with Docker</b></a>
-</p>
+---
 
-# Table of Contents
+## 来源与致谢 / Credits
 
-- [Introduction](#introduction)
-- [Features](#features)
-  - [Why it is different](#why-it-is-different)
-  - [Hormone levels](#hormone-levels)
-  - [Doses and plans](#doses-and-plans)
-  - [Lab results](#lab-results)
-  - [Supplies](#supplies)
-  - [Backup and sharing](#backup-and-sharing)
-  - [Where the model comes from](#where-the-model-comes-from)
-- [Command-line tools](#command-line-tools)
-- [Self-hosting](#self-hosting)
-- [Contributing](#contributing)
-- [For AI contributors](#for-ai-contributors)
-- [Support](#support)
-- [Legal](#legal)
+本项目是 **[Oyama's HRT Tracker](https://github.com/xunxunProjects/Oyama-s-HRT-Tracker)** 的 Android 重写版本，原作由 **Joseph Smirnova Oyama（[@SmirnovaOyama](https://github.com/SmirnovaOyama)）** 以 MIT 许可证发布。原始的 Web / Tauri 客户端代码仍原样保留在本仓库根目录，Android 实现位于 [`flutter_app/`](flutter_app)。
 
-# Introduction
+> This is an Android rewrite of **Oyama's HRT Tracker** by **Joseph Smirnova Oyama**, used and redistributed under the MIT License. The original web/Tauri client is kept unmodified at the repository root; the rewrite lives in [`flutter_app/`](flutter_app).
 
-**Oyama's HRT Tracker** is a privacy-focused tool for logging hormone replacement therapy and simulating the hormone levels your doses produce. It has a feminizing mode (estradiol, plus cyproterone acetate) and a masculinizing mode (testosterone), and it can log other adjunct drugs too.
+雌二醇的药代动力学模型来自 **[@LaoZhong-Mihari](https://github.com/LaoZhong-Mihari)** 的 [HRT-Recorder-PKcomponent-Test](https://github.com/LaoZhong-Mihari/HRT-Recorder-PKcomponent-Test)（`PKcore.swift` / `PKparameter.swift`）：三室结构、双相注射储库动力学与舌下吸收档位均沿用该模型。
 
-**Runs in the browser, as an installable app, on macOS and Windows, or on your own server.**
+详见 [NOTICE.md](NOTICE.md)。
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./docs/images/gallery-dark.png" />
-    <img src="./docs/images/gallery-light.png" alt="Six screens of the app: overview, hormone level timeline, what-if, dose history, lab results and logging a dose" />
-  </picture>
-</p>
+## 下载 / Download
 
-From left to right: the overview with the current estimate, a month of estradiol levels, the what-if planner, the dose history, lab results next to the model, and logging a new dose. The screenshots use sample records; to make them again, see [design/readme](./design/readme/README.md).
+最新版本在 [Releases](https://github.com/imisakamikoto/misaka-hrt-tracker/releases)：
 
-> [!WARNING]
-> **Not medical advice.** This app shows estimates from a pharmacokinetic model. They can differ a lot from your real hormone levels and are no substitute for blood tests or a clinician. Do not start, stop or change any medication based on this app alone.
+| 文件 | 适用 |
+|---|---|
+| `Misaka-hrt-arm64-v8a.apk` | 绝大多数手机（推荐） |
+| `Misaka-hrt-armeabi-v7a.apk` | 老款 32 位机型 |
+| `Misaka-hrt-x86_64.apk` | 模拟器 |
 
-# Features
+Android 9（API 28）及以上。当前用 debug key 签名，直接安装即可；上架商店需要自建 keystore。
 
-## Why it is different
+## 功能
 
-- **Private by default**: your records stay in your browser unless you turn on cloud backup or make a share link, and both are end-to-end encrypted.
-- **Open source**: every line is public under the MIT License, so anyone can check how the estimates are made.
-- **Free**: no subscriptions, no paid features, no ads.
-- **Speaks your language**: Simplified Chinese, Traditional Chinese, Cantonese, English, Japanese, Korean and Turkish.
+- **记录**：注射、口服、舌下、凝胶、贴片，凝胶部位、贴片释放率与佩戴时长、舌下含服档位；快捷剂量与模板；按天分组的历史与热力图。
+- **估算**：目标带、当前浓度、CPA / 睾酮曲线，1 / 3 / 7 / 30 天窗口，拖动读数；此刻之后按用药计划画虚线预测。
+- **校准**：MIPD、扩展卡尔曼（EKF）、OU-Kalman，前向 / 回溯两种历史模式。
+- **检验**：录入结果（pg/mL、pmol/L、ng/dL、nmol/L），叠加到曲线并与模型对账。
+- **计划与库存**：周期性方案、今日待服、下一次服药；库存剩余与用完日期。
+- **提醒**：模型预测浓度跌破目标带下沿前提醒服药（仅非注射方案），可选的到点提醒，精确闹钟不可用时自动降级；重启后由 `BOOT_COMPLETED` 接收器恢复。
+- **备份**：完整备份、仅记录、加密备份（PBKDF2-SHA256 600k + AES-256-GCM）、只读快照；导入兼容本项目四种历史格式，可合并或替换。
+- **外观**：Material 3、Material You 动态取色、浅色/深色/单色、简体/繁体/粤语/英/日/韩/土耳其语。
 
-## Hormone levels
-
-- See the estimated level over time: estradiol in pg/mL, cyproterone acetate in ng/mL, total testosterone in ng/dL
-- Estradiol by injection (benzoate, valerate, cypionate, enanthate, and undecylate in beta), oral, sublingual, gel and patch
-- Testosterone by injection (cypionate, enanthate, undecanoate) and gel
-- For sublingual doses, pick how long you hold the tablet (2 to 15 minutes) or enter your own time
-
-## Doses and plans
-
-- Write down what you take and how often; the overview shows what is due today and logs it with one tap
-- Compare carrying on as now with a planned change in the what-if view
-- Log spironolactone, bicalutamide, medroxyprogesterone acetate, raloxifene, leuprorelin and triptorelin as well; they have no level model, so they draw no curve
-
-## Lab results
-
-- Log blood test results and see them on the curve next to the estimate
-- Calibrate the estradiol model to you with EKF, OU-Kalman or MIPD, or edit its parameters by hand
-
-## Supplies
-
-- Keep track of how much of each medicine you have
-- Logged doses are subtracted automatically, and the overview warns you before you run out
-
-## Backup and sharing
-
-- Back up to the cloud with end-to-end encryption, or export a file
-- Share a read-only link to your dose history and curve; the key lives only in the link, and lab results, weight and account details are never included
-- Read the [privacy notice](./PRIVACY.md) for every detail
-
-## Where the model comes from
-
-The estradiol pharmacokinetic model is based on `PKcore.swift` and `PKparameter.swift` by **@LaoZhong-Mihari**, from the **[HRT-Recorder-PKcomponent-Test](https://github.com/LaoZhong-Mihari/HRT-Recorder-PKcomponent-Test)** repository. Its three-compartment structure, two-part injection depot kinetics and sublingual absorption tiers come from there.
-
-This project has since adjusted and extended the model: it adds testosterone (injection esters, gel and patch) for the masculinizing mode, cyproterone acetate on its own curve, and estradiol undecylate injections; it revises the gel and sublingual handling; and it can calibrate the estradiol curve against your lab results. See [Algorithm Explanation.md](./Algorithm%20Explanation.md) for the details.
-
-# Command-line tools
-
-The offline tools live in the separate **[Oyama-s-HRT-Tracker-Tools](https://github.com/xunxunProjects/Oyama-s-HRT-Tracker-Tools)** repository. [`hrt-tool`](https://github.com/xunxunProjects/Oyama-s-HRT-Tracker-Tools/blob/main/tools/hrt-tool/README.md) is a pre-release command-line client for the same data:
-
-- `status` shows the current estimate, the projected curve and recent blood tests;
-- `add dose` records a dose interactively;
-- `proxy socks5://…` connects through Tor or I2P, with DNS resolved by the proxy;
-- the vault, sessions and named connections are encrypted at rest.
-
-The CLI is experimental; the website does not depend on it and never handles OpenPGP keys or passphrases. Build and release downloads are in the [Tools repository](https://github.com/xunxunProjects/Oyama-s-HRT-Tracker-Tools).
-
-# Self-hosting
-
-You are **very welcome** to run this app on your own website or server, and you do not need to ask first. The simplest way is Docker; to use your own Cloudflare account instead, see [Cloudflare](#cloudflare).
-
-## Docker
-
-The Docker image runs the complete app locally, including the Worker API, D1
-database, and R2-compatible avatar storage. Data is kept in the project's `./data`
-directory and survives container restarts. The image is built from source on
-your machine, so you need Git and Docker with Compose.
-
-The fastest path is the two helper scripts in the repository root. They do not
-install Docker itself.
+## 构建
 
 ```bash
-git clone https://github.com/xunxunProjects/Oyama-s-HRT-Tracker.git
-cd Oyama-s-HRT-Tracker
-./Dependency-Detection.sh --docker   # read-only preflight
-./docker-install.sh                  # asks: loopback, public domain, or LAN
+cd flutter_app
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+cargo install cargo-ndk            # 一次性
+flutter pub get
+flutter build apk --release --split-per-abi
 ```
 
-`Dependency-Detection.sh --docker` checks the app version and release tag,
-Docker, Compose, the daemon, `.env`, `./data`, and the port; the Docker path does
-not need Node.js on the host. An app version older than 1.5.2 fails the check,
-and a checkout that is not a release tag gets a warning.
-`docker-install.sh` creates `.env` with a generated `JWT_SECRET` (mode 600),
-prepares `./data` for uid 1000, starts the Compose stack, and waits for
-`/api/transparency`. It never prints the secret. For a public domain it keeps
-the app on loopback and prints a Caddy, nginx, Cloudflare, or Tailscale
-configuration to finish; it does not edit your proxy. Use `--dry-run` to see
-the plan, `--yes --mode loopback` for an unattended loopback install, or
-`--mode lan --port 18787` for a trusted LAN without TLS.
+Gradle 的 `buildRustCore` 任务会在 `preBuild` 前用 cargo-ndk 交叉编译 `flutter_app/rust`，把 `libhrt_core.so` 放进 `jniLibs`；没装 Rust 工具链时会跳过、复用已有 `.so`。细节见 [`flutter_app/BUILD.md`](flutter_app/BUILD.md)。
 
-If you prefer the manual path:
+## 测试
 
 ```bash
-cp .env.docker.example .env
-# Replace JWT_SECRET in .env with the output of:
-openssl rand -base64 48
-mkdir -p ./data
-sudo chown 1000:1000 ./data
-docker compose up -d --build
+cd flutter_app/rust && cargo test          # 8 项：解析、配对、量级
+cd flutter_app && flutter test             # 22 项：领域逻辑、备份、Dart ⇄ Rust 端到端
 ```
 
-Then open <http://localhost:8787>. The port is published on `127.0.0.1` only,
-so the app is not reachable from the LAN by default. Keep it that way unless a
-reverse proxy sits in front, or deliberately set `HRT_BIND_HOST=0.0.0.0` in
-`.env` (or use `./docker-install.sh --mode lan`). LAN mode has no TLS; never
-expose it directly to the internet.
+## 仓库结构
 
-The first build takes a few minutes. To update later, pull the new code and
-rebuild; your data in `./data` is kept:
-
-```bash
-git pull
-docker compose up -d --build
+```
+flutter_app/            Android 应用
+  lib/                  Flutter 界面与状态
+  rust/                 药代动力学内核（cdylib / staticlib / rlib）
+  android/              Gradle、Manifest、BootReceiver、jniLibs
+src/ logic.ts ...       上游 Web 客户端（保留，未改动）
+README.UPSTREAM.md      上游 README（原文）
+NOTICE.md               来源与第三方声明
+LICENSE                 MIT
 ```
 
-### Plain http and https
+## 免责声明
 
-To open the app over plain http from another device (for example
-`http://192.168.1.5:8787`), set `HRT_BIND_HOST=0.0.0.0` in `.env` or run
-`./docker-install.sh --mode lan --port 18787`, or put the container behind a
-reverse proxy first. Backups, exports and share links stay end-to-end encrypted
-over plain http too. Browsers do hold back a few features until the page is
-served over https (or opened as `localhost`): installing it as an app, offline
-use, and passkey sign-in. To get those, put the container behind any https
-reverse proxy, such as [Caddy](https://caddyserver.com/docs/quick-starts/reverse-proxy)
-(`caddy reverse-proxy --from your.domain --to localhost:8787`) or
-[Tailscale Serve](https://tailscale.com/kb/1312/serve).
+本应用给出的是**模型估算值，不是医疗建议**，也不能替代化验。用药请遵医嘱。
 
-[Caddy](https://caddyserver.com/docs/quick-starts/reverse-proxy)
+## 许可证
 
-### Database schema
-
-The schema is defined only by the files in `migrations/`. The container applies
-them on every start, and a volume created by an older image is reconciled first
-(`docker/reconcile.mjs`), so upgrading needs nothing from you.
-
-For a Cloudflare deployment, run the same two steps once before deploying a
-build that includes migration `0000`:
-
-```bash
-npm run wrangler:migrate:reconcile
-npm run wrangler:migrate:remote
-```
-
-Web and Docker builds use same-origin `/api` requests by default. Desktop and
-other custom-protocol builds should set `VITE_API_ORIGIN` to their Worker/API
-origin at build time; the release workflow supplies the hosted origin.
-
-To stop the app without deleting its data:
-
-```bash
-docker compose down
-```
-
-Without Compose, build and run the image with plain Docker:
-
-```bash
-docker build -t hrt-tracker:local .
-docker run -d --name hrt-tracker \
-  -p 127.0.0.1:8787:8787 \
-  --env-file .env \
-  -v "$(pwd)/data:/data" \
-  hrt-tracker:local
-```
-
-The mapping above is loopback-only. Use `-p 8787:8787` only if you intend to
-expose the container to the LAN, and never expose it directly to the internet:
-put a TLS-terminating reverse proxy (or a Tor/I2P daemon) in front instead.
-
-`ADMIN_USERNAME` and `ADMIN_PASSWORD` are optional. When used, set both. The
-container uses Wrangler's local workerd runtime and local persistent D1/R2
-resources; it does not connect to the Cloudflare production database or bucket.
-
-`TRUSTED_IP_SOURCE` is optional too. The default is `none`, because a client
-can set either forwarding header itself. Set `cf` only when Cloudflare is
-actually in front and its edge overwrites `CF-Connecting-IP`; set
-`x-forwarded-for` only when exactly one trusted reverse proxy in front appends
-the client address. With `none`, each endpoint gets one shared limit instead
-of one per address. `docker-install.sh` sets these values for its modes; if
-you configure a proxy by hand, make it overwrite the matching header rather
-than passing the client's value through.
-
-`PUBLIC_APP_ORIGIN` (for example `https://hrt.example.com`) is optional. Share
-links use it, and passkey sign-in accepts it when the proxy does not pass the
-browser's `Host` header through.
-
-The workflow in `.github/workflows/docker-publish.yml` validates pull requests
-and publishes `linux/amd64` and `linux/arm64` images to GitHub Container Registry
-for `main`, version tags, and manual runs. That package is private for now, so
-pulling it without access fails; build from source as shown above.
-
-## Cloudflare
-
-`wrangler.toml` points at the maintainer's own database and bucket. Those IDs
-only work inside the maintainer's Cloudflare account, so replace them with
-resources you create in yours. Everything below runs from your clone of the
-repository.
-
-1. **Sign in**
-
-   ```bash
-   npm install
-   npx wrangler login
-   ```
-
-2. **Create the database**
-
-   ```bash
-   npx wrangler d1 create hrt-tracker-prod
-   ```
-
-   Copy the `database_id` it prints into the `[[d1_databases]]` block of
-   `wrangler.toml`, replacing the one there. Keep the name `hrt-tracker-prod`:
-   the npm scripts below use it.
-
-3. **Create the avatar bucket**
-
-   ```bash
-   npx wrangler r2 bucket create hrt-tracker-avatars
-   ```
-
-   Set `bucket_name` in the `[[r2_buckets]]` block to `hrt-tracker-avatars`
-   (or whatever name you chose). R2 has to be enabled once in the Cloudflare
-   dashboard before the first bucket can be created.
-
-4. **Remove the preview blocks**
-
-   Delete every `[[previews.*]]` block at the end of `wrangler.toml`. They point
-   at the maintainer's preview database and are only used by pull request
-   previews in Workers Builds. If you want previews too, create a second
-   database and bucket and put their names and ID there instead.
-
-5. **Create the tables**
-
-   ```bash
-   npm run wrangler:migrate:remote
-   ```
-
-   Run this again after pulling updates that add files to `migrations/`.
-
-6. **Deploy**
-
-   ```bash
-   npm run build
-   npx wrangler deploy
-   ```
-
-   Wrangler prints a `workers.dev` address. To use your own domain, add it under
-   the Worker's Settings, Domains & Routes in the Cloudflare dashboard. If share
-   links should use a different address than the one people open, set the
-   variable `PUBLIC_APP_ORIGIN` (for example `https://hrt.example.com`).
-
-7. **Set the secrets**
-
-   Sign-in needs `JWT_SECRET`, so set it right after the first deploy.
-
-   ```bash
-   openssl rand -base64 48 | npx wrangler secret put JWT_SECRET
-   # Optional built-in admin account, set both or neither
-   npx wrangler secret put ADMIN_USERNAME
-   npx wrangler secret put ADMIN_PASSWORD
-   ```
-
-To deploy on every push instead, connect your fork in the Worker's Settings,
-Builds, with build command `npm run build` and deploy command
-`npx wrangler deploy`, after committing the `wrangler.toml` changes above to
-your fork.
-
-## Attribution
-
-If you deploy this app publicly, please:
-
-1. **Keep the original algorithm credits**: Visibly link back to the [HRT-Recorder-PKcomponent-Test](https://github.com/LaoZhong-Mihari/HRT-Recorder-PKcomponent-Test) repository.
-
-2. **Respect the license**: Ensure you follow any licensing terms associated with the original algorithm code.
-
-# Contributing
-
-Contributions are welcome, and you do not need to be a programmer to help. See [CONTRIBUTING.md](./CONTRIBUTING.md) for running the app locally, a map of the code, adding a translation and making a release, and please follow the [Code of Conduct](./CODE_OF_CONDUCT.md). To report a security problem, see [SECURITY.md](./SECURITY.md).
-
-# For AI contributors
-
-If you are an AI agent working in this repository, read [docs/AI-GUIDE.md](./docs/AI-GUIDE.md) before changing code. It maps the repository structure and modules, the data and trust boundaries, the checks CI runs, and the rules for changing the model, database, API, and deployment scripts.
-
-The guide is in English so different agents and tools can share one canonical reference. This README and [CONTRIBUTING.md](./CONTRIBUTING.md) stay bilingual for people.
-
-# Support
-
-<p align="center">
-  <b>Maintainers</b>
-  <br />
-  <a href="https://github.com/SmirnovaOyama">@SmirnovaOyama</a>
-  <br />
-  <a href="https://github.com/fantuanmtf">@fantuanmtf</a>
-  <br />
-  <br />
-  <b>Original model</b>
-  <br />
-  <a href="https://github.com/LaoZhong-Mihari">@LaoZhong-Mihari</a>
-  <br />
-  <br />
-  <b><a href="https://github.com/xunxunProjects/Oyama-s-HRT-Tracker/graphs/contributors">Contributors</a></b>
-  <br />
-  <br />
-  <a href="https://github.com/xunxunProjects/Oyama-s-HRT-Tracker/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=xunxunProjects/Oyama-s-HRT-Tracker" alt="Contributors" />
-  </a>
-</p>
-
-Found a bug or have an idea? [Open an issue](https://github.com/xunxunProjects/Oyama-s-HRT-Tracker/issues/new/choose).
-
-Wishing steady progress and good health to everyone who uses this tool.
-
-# Legal
-
-**Oyama's HRT Tracker is for information only and is not medical advice. Its estimates come from a model and can be far from your real levels. Use it at your own risk, and talk to a clinician about any change to your treatment.**
-
-This project is released under the MIT License; see [LICENSE](./LICENSE). How your data is handled is described in the [privacy notice](./PRIVACY.md).
+MIT，见 [LICENSE](LICENSE)。上游版权归 Joseph Smirnova Oyama 所有，Android 重写部分版权归本项目贡献者所有。

@@ -7,9 +7,7 @@ import 'package:flutter/services.dart';
 /// every call quietly reports "not supported" and the app keeps working with
 /// notifications scheduled by the alarm manager alone.
 abstract final class BootHost {
-  static const MethodChannel _channel = MethodChannel(
-    'com.oyama.hrt_tracker/boot',
-  );
+  static const MethodChannel _channel = MethodChannel('jp.misaka.hrt/boot');
 
   static bool? _supported;
 

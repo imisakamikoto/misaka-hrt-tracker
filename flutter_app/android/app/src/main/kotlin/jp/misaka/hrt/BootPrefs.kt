@@ -1,4 +1,4 @@
-package com.oyama.hrt_tracker
+package jp.misaka.hrt
 
 import android.content.Context
 import android.content.SharedPreferences
