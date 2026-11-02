@@ -12,6 +12,7 @@
     Id="*"
     Name="Misaka hrt记录器"
     Language="2052"
+    Codepage="936"
     Version="$(var.ProductVersion)"
     Manufacturer="jp.misaka"
     UpgradeCode="8C3E1D5A-2B47-4C9F-9A61-7D2E4B0F13C8">
@@ -21,6 +22,7 @@
       Compressed="yes"
       InstallScope="perMachine"
       Platform="x64"
+      SummaryCodepage="936"
       Description="Offline HRT tracker and concentration modeller" />
 
     <MajorUpgrade

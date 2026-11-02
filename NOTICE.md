@@ -41,8 +41,12 @@ Settings → Credits.
 
 - Material 3 user interface (dynamic colour, adaptive navigation, predictive
   back) replacing the React client.
-- The model ported to Rust and shipped as a plain `libhrt_core.so` behind a JSON
-  C ABI, so other clients can reuse it without a Dart runtime.
+- The model ported to Rust behind a JSON C ABI, so other clients can reuse it
+  without a Dart runtime: `libhrt_core.so` on Android, a static archive linked
+  into the iOS app, `hrt_core.dll` on Windows.
+- Windows and iOS builds from the same Dart code, with a windowed layout of its
+  own (permanent navigation drawer, dashboard board, history table, keyboard
+  shortcuts) rather than the phone layout scaled up.
 - SQLite as the only store; the Cloudflare worker, the community vote and every
   network call removed. The Android manifest declares no network permission.
 - Local notifications driven by the modelled curve, plus a boot receiver and an
@@ -56,7 +60,7 @@ Settings → Credits.
 ## 4. License
 
 MIT — see [LICENSE](LICENSE). The upstream copyright notice is preserved there
-and applies to the upstream-derived material; the Android rewrite is
+and applies to the upstream-derived material; the rewrite is
 copyright its contributors under the same terms.
 
 Third-party Dart, Rust and Android packages are used under their own licenses;
