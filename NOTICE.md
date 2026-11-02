@@ -5,9 +5,7 @@ license terms for the upstream material and must be kept with any redistribution
 
 ## 1. Oyama's HRT Tracker (upstream project)
 
-The web application at the repository root — `src/`, `logic.ts`, `public/`,
-`tests/`, the Tauri shell under `src-tauri/`, the worker, the documentation and
-`README.UPSTREAM.md` — is **Oyama's HRT Tracker**, distributed under the MIT
+This app is a **rewrite** of **Oyama's HRT Tracker**, distributed under the MIT
 License:
 
 > MIT License
@@ -17,17 +15,18 @@ License:
 - Upstream repository: <https://github.com/xunxunProjects/Oyama-s-HRT-Tracker>
 - Author: Joseph Smirnova Oyama (GitHub: [@SmirnovaOyama](https://github.com/SmirnovaOyama))
 
-Those files are kept as they were received. The Android application in
-`flutter_app/` is a separate implementation written for this repository: the
-user interface was rewritten in Flutter, the pharmacokinetic model was
-translated to Rust, and the server components were removed. It is not a fork of
-the upstream UI code, but it reuses the upstream algorithms, the storage and
-backup formats, the design language and the translated copy, so it is a
-derivative work and remains under the same MIT License.
+The upstream web client (`src/`, `logic.ts`, `public/`, `tests/`), its Tauri
+shell, the Cloudflare worker and the documentation are **not** included in this
+repository; only the Android rewrite lives here. The rewrite is not a fork of
+the upstream UI code — the interface was rewritten in Flutter, the
+pharmacokinetic model was translated to Rust, and the server components were
+removed — but it reuses the upstream algorithms, the storage and backup formats,
+the design language and the translated copy, so it is a derivative work and
+remains under the same MIT License.
 
 ## 2. HRT-Recorder-PKcomponent-Test (pharmacokinetic model)
 
-The estradiol model implemented in `flutter_app/rust/src/engine.rs` follows
+The estradiol model implemented in `rust/src/engine.rs` follows
 `PKcore.swift` and `PKparameter.swift` from:
 
 - Repository: <https://github.com/LaoZhong-Mihari/HRT-Recorder-PKcomponent-Test>
@@ -38,7 +37,7 @@ sublingual absorption tiers come from that project. Upstream's own README asks
 that this credit stay visible, and it is shown in the app under
 Settings → Credits.
 
-## 3. Changes made in `flutter_app/`
+## 3. Changes made in this rewrite
 
 - Material 3 user interface (dynamic colour, adaptive navigation, predictive
   back) replacing the React client.
@@ -61,5 +60,4 @@ and applies to the upstream-derived material; the Android rewrite is
 copyright its contributors under the same terms.
 
 Third-party Dart, Rust and Android packages are used under their own licenses;
-the resolved set is listed in `flutter_app/pubspec.lock` and
-`flutter_app/rust/Cargo.lock`.
+the resolved set is listed in `pubspec.lock` and `rust/Cargo.lock`.

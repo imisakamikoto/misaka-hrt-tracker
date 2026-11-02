@@ -8,13 +8,13 @@
 
 ## 来源与致谢 / Credits
 
-本项目是 **[Oyama's HRT Tracker](https://github.com/xunxunProjects/Oyama-s-HRT-Tracker)** 的 Android 重写版本，原作由 **Joseph Smirnova Oyama（[@SmirnovaOyama](https://github.com/SmirnovaOyama)）** 以 MIT 许可证发布。原始的 Web / Tauri 客户端代码仍原样保留在本仓库根目录，Android 实现位于 [`flutter_app/`](flutter_app)。
+本项目是 **[Oyama's HRT Tracker](https://github.com/xunxunProjects/Oyama-s-HRT-Tracker)** 的 Android 重写版本，原作由 **Joseph Smirnova Oyama（[@SmirnovaOyama](https://github.com/SmirnovaOyama)）** 以 MIT 许可证发布。本仓库只包含重写后的 Android 实现，**不包含上游的 Web / Tauri / Worker 源码**；需要对照原实现请访问上游仓库。
 
-> This is an Android rewrite of **Oyama's HRT Tracker** by **Joseph Smirnova Oyama**, used and redistributed under the MIT License. The original web/Tauri client is kept unmodified at the repository root; the rewrite lives in [`flutter_app/`](flutter_app).
+> This is an Android rewrite of **Oyama's HRT Tracker** by **Joseph Smirnova Oyama**, used and redistributed under the MIT License. This repository contains only the rewritten Android client — the upstream web/Tauri/worker sources are not vendored here; see the upstream repository for those.
 
 雌二醇的药代动力学模型来自 **[@LaoZhong-Mihari](https://github.com/LaoZhong-Mihari)** 的 [HRT-Recorder-PKcomponent-Test](https://github.com/LaoZhong-Mihari/HRT-Recorder-PKcomponent-Test)（`PKcore.swift` / `PKparameter.swift`）：三室结构、双相注射储库动力学与舌下吸收档位均沿用该模型。
 
-详见 [NOTICE.md](NOTICE.md)。
+算法说明可参考上游的 [Algorithm Explanation.md](https://github.com/xunxunProjects/Oyama-s-HRT-Tracker/blob/main/Algorithm%20Explanation.md)。详见 [NOTICE.md](NOTICE.md)。
 
 ## 下载 / Download
 
@@ -22,11 +22,11 @@
 
 | 文件 | 适用 |
 |---|---|
-| `Misaka-hrt-arm64-v8a.apk` | 绝大多数手机（推荐） |
-| `Misaka-hrt-armeabi-v7a.apk` | 老款 32 位机型 |
-| `Misaka-hrt-x86_64.apk` | 模拟器 |
+| `Misaka-hrt-1.0.2-arm64-v8a.apk` | 绝大多数手机（推荐） |
+| `Misaka-hrt-1.0.2-armeabi-v7a.apk` | 老款 32 位机型 |
+| `Misaka-hrt-1.0.2-x86_64.apk` | 模拟器 |
 
-Android 9（API 28）及以上。当前用 debug key 签名，直接安装即可；上架商店需要自建 keystore。
+Android 7（API 24）及以上。当前用 debug key 签名，直接安装即可；上架商店需要自建 keystore。
 
 ## 功能
 
@@ -42,33 +42,31 @@ Android 9（API 28）及以上。当前用 debug key 签名，直接安装即可
 ## 构建
 
 ```bash
-cd flutter_app
 rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 cargo install cargo-ndk            # 一次性
 flutter pub get
 flutter build apk --release --split-per-abi
 ```
 
-Gradle 的 `buildRustCore` 任务会在 `preBuild` 前用 cargo-ndk 交叉编译 `flutter_app/rust`，把 `libhrt_core.so` 放进 `jniLibs`；没装 Rust 工具链时会跳过、复用已有 `.so`。细节见 [`flutter_app/BUILD.md`](flutter_app/BUILD.md)。
+Gradle 的 `buildRustCore` 任务会在 `preBuild` 前用 cargo-ndk 交叉编译 `rust/`，把 `libhrt_core.so` 放进 `android/app/src/main/jniLibs`；没装 Rust 工具链时会跳过、复用已有 `.so`。细节见 [BUILD.md](BUILD.md)。
 
 ## 测试
 
 ```bash
-cd flutter_app/rust && cargo test          # 8 项：解析、配对、量级
-cd flutter_app && flutter test             # 22 项：领域逻辑、备份、Dart ⇄ Rust 端到端
+cd rust && cargo test     # 8 项：解析、配对、量级
+cd .. && flutter test     # 22 项：领域逻辑、备份、Dart ⇄ Rust 端到端
 ```
 
 ## 仓库结构
 
 ```
-flutter_app/            Android 应用
-  lib/                  Flutter 界面与状态
-  rust/                 药代动力学内核（cdylib / staticlib / rlib）
-  android/              Gradle、Manifest、BootReceiver、jniLibs
-src/ logic.ts ...       上游 Web 客户端（保留，未改动）
-README.UPSTREAM.md      上游 README（原文）
-NOTICE.md               来源与第三方声明
-LICENSE                 MIT
+lib/                  Flutter 界面与状态
+rust/                 药代动力学内核（cdylib / staticlib / rlib）
+android/              Gradle、Manifest、BootReceiver、jniLibs
+test/ tool/           单元测试与离线校验脚本
+BUILD.md              构建与签名说明
+NOTICE.md             来源与第三方声明
+LICENSE               MIT
 ```
 
 ## 免责声明
