@@ -107,11 +107,12 @@ install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
 
+
 # === Rust pharmacokinetic core ================================================
-# The Dart side opens `hrt_core.dll` from the application directory, so the
-# cargo output has to sit next to the executable — both for `flutter run` and
-# for the installed copy. Build it first with:
-#   cd rust && cargo build --release
+# The Dart side opens `hrt_core.dll` from the application directory. The copy
+# that runs after the link lives in runner/CMakeLists.txt, because a POST_BUILD
+# command has to be declared in the directory that created the target; only the
+# install rule can be declared from here.
 set(HRT_CORE_CANDIDATES
   "${CMAKE_CURRENT_SOURCE_DIR}/../rust/target/release/hrt_core.dll"
   "${CMAKE_CURRENT_SOURCE_DIR}/../rust/target/x86_64-pc-windows-msvc/release/hrt_core.dll"
@@ -124,10 +125,6 @@ foreach(candidate ${HRT_CORE_CANDIDATES})
 endforeach()
 
 if(DEFINED HRT_CORE_DLL)
-  add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${HRT_CORE_DLL}" "$<TARGET_FILE_DIR:${BINARY_NAME}>"
-    COMMENT "Copying hrt_core.dll next to the runner")
   install(FILES "${HRT_CORE_DLL}"
     DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
 else()

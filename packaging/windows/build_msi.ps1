@@ -74,7 +74,7 @@ if ($LASTEXITCODE -ne 0) { throw "candle failed for Product.wxs" }
 if ($LASTEXITCODE -ne 0) { throw "candle failed for AppFiles.wxs" }
 
 Write-Host "Linking $OutFile"
-& $light -nologo -sflags -out $outPath `
+& $light -nologo -sval -out $outPath `
   (Join-Path $work "Product.wixobj") (Join-Path $work "AppFiles.wixobj")
 if ($LASTEXITCODE -ne 0) { throw "light failed" }
 

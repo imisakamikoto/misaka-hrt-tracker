@@ -38,3 +38,29 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# === Rust pharmacokinetic core ================================================
+# Cargo writes `hrt_core.dll` into rust/target; the Dart side looks for it next
+# to the executable, so it is copied after the link (and by flutter's install
+# step, which is declared in the parent CMakeLists.txt).
+set(HRT_CORE_CANDIDATES
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../rust/target/release/hrt_core.dll"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../rust/target/x86_64-pc-windows-msvc/release/hrt_core.dll"
+)
+foreach(candidate ${HRT_CORE_CANDIDATES})
+  if(EXISTS "${candidate}")
+    set(HRT_CORE_DLL "${candidate}")
+    break()
+  endif()
+endforeach()
+
+if(DEFINED HRT_CORE_DLL)
+  add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${HRT_CORE_DLL}" "$<TARGET_FILE_DIR:${BINARY_NAME}>"
+    COMMENT "Copying hrt_core.dll next to the runner")
+else()
+  message(WARNING
+    "hrt_core.dll was not found, so the app will start without the model. "
+    "Run `cargo build --release` inside rust/ and rebuild.")
+endif()
