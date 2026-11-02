@@ -1,5 +1,7 @@
 # Misaka hrt记录器
 
+<img src="assets/icon-rounded.png" width="96" align="right" alt="Misaka hrt记录器">
+
 离线运行的 HRT 记录与血药浓度估算应用，**Android、iOS、Windows 三端同一份代码**。界面用 Flutter（Material 3，桌面端另有专门的宽屏布局），药代动力学模型用 Rust 写成原生库（Android 用 `libhrt_core.so`、iOS 静态链接、Windows 用 `hrt_core.dll`）。所有数据只保存在本地：没有账号、没有服务器，**Android 版不申请任何网络权限**。
 
 **English**: an offline HRT tracker and concentration modeller for Android, iOS and Windows from one Flutter (Material 3) codebase, with the pharmacokinetic model in Rust as a native library. Everything stays on the device; the Android build requests no network permission at all.
@@ -22,11 +24,11 @@
 
 | 文件 | 平台 | 说明 |
 |---|---|---|
-| `Misaka-hrt-1.1.0-arm64-v8a.apk` | Android | 绝大多数手机（推荐） |
-| `Misaka-hrt-1.1.0-armeabi-v7a.apk` | Android | 老款 32 位机型 |
-| `Misaka-hrt-1.1.0-x86_64.apk` | Android | 模拟器 |
-| `Misaka-hrt-1.1.0-ios.ipa` | iOS | **未签名**，需用 AltStore / Sideloadly / Xcode 用你自己的 Apple ID 重签 |
-| `Misaka-hrt-1.1.0-windows-x64.msi` | Windows | 双击安装，开始菜单建快捷方式；需要 Windows 10 1809 以上（x64） |
+| `Misaka-hrt-1.1.1-arm64-v8a.apk` | Android | 绝大多数手机（推荐） |
+| `Misaka-hrt-1.1.1-armeabi-v7a.apk` | Android | 老款 32 位机型 |
+| `Misaka-hrt-1.1.1-x86_64.apk` | Android | 模拟器 |
+| `Misaka-hrt-1.1.1-ios.ipa` | iOS | **未签名**，需用 AltStore / Sideloadly / Xcode 用你自己的 Apple ID 重签 |
+| `Misaka-hrt-1.1.1-windows-x64.msi` | Windows | 双击安装，开始菜单建快捷方式；需要 Windows 10 1809 以上（x64） |
 
 Android 7（API 24）及以上，iOS 15 及以上，Windows 10 1809 / Windows 11。Android 版当前用 debug key 签名，直接安装即可；上架商店需要自建 keystore。iOS 未签名包只能自签安装，无法直接双击装进 iPhone——这是苹果的限制，本项目不附带证书。
 

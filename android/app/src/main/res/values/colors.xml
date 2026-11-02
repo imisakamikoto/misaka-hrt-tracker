@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Background layer of the adaptive launcher icon. It is the app's seed
+         colour, so the icon and the Material You palette agree. -->
+    <color name="ic_launcher_background">#B2674F</color>
+</resources>
