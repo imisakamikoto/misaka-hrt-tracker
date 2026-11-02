@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX source for the Windows installer.
+
+  The file list is not written by hand: `build_msi.ps1` runs `heat` over the
+  Flutter release folder and links the harvested component group in here, so a
+  new plugin DLL cannot be forgotten. Only the parts that are not derived from
+  the build output (product identity, install location, shortcut) live below.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+    Id="*"
+    Name="Misaka hrt记录器"
+    Language="2052"
+    Version="$(var.ProductVersion)"
+    Manufacturer="jp.misaka"
+    UpgradeCode="8C3E1D5A-2B47-4C9F-9A61-7D2E4B0F13C8">
+
+    <Package
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perMachine"
+      Platform="x64"
+      Description="Offline HRT tracker and concentration modeller" />
+
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of Misaka hrt记录器 is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Misaka hrt记录器" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="AppMenuFolder" Name="Misaka hrt记录器" />
+      </Directory>
+    </Directory>
+
+    <Component Id="StartMenuShortcut" Directory="AppMenuFolder"
+               Guid="5F0B7B24-9C1E-4B6D-8E3A-2A4C9D6B71F2">
+      <Shortcut Id="AppShortcut"
+                Name="Misaka hrt记录器"
+                Description="Offline HRT tracker and concentration modeller"
+                Target="[INSTALLFOLDER]hrt_tracker.exe"
+                WorkingDirectory="INSTALLFOLDER" />
+      <RemoveFolder Id="RemoveAppMenuFolder" On="uninstall" />
+      <RegistryValue Root="HKLM" Key="Software\jp.misaka\hrt"
+                     Name="installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <Feature Id="Main" Title="Misaka hrt记录器" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+  </Product>
+</Wix>

@@ -1,0 +1,89 @@
+name: Build iOS and Windows
+
+# Neither target can be built on a phone or on the other person's machine: an
+# IPA needs Xcode, an MSI needs MSVC and WiX. Both are produced here, from the
+# same commit, so a release always ships the three platform builds together.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  ios:
+    name: iOS (unsigned IPA)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+      - name: Build the pharmacokinetic core
+        run: bash rust/build_ios.sh
+
+      - name: Read version
+        id: version
+        run: |
+          version=$(sed -n 's/^version: *//p' pubspec.yaml | head -1 | cut -d+ -f1)
+          echo "value=${version}" >> "$GITHUB_OUTPUT"
+          echo "Building ${version}"
+
+      - name: Build the app bundle
+        run: flutter build ios --release --no-codesign
+
+      - name: Package the IPA
+        run: |
+          set -euo pipefail
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          # An unsigned IPA is just a zip of Payload/: AltStore, Sideloadly or
+          # Xcode re-sign it with the person's own Apple ID.
+          zip -qry "Misaka-hrt-${{ steps.version.outputs.value }}-ios.ipa" Payload
+          ls -lh *.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ipa
+          path: '*.ipa'
+          if-no-files-found: error
+
+  windows:
+    name: Windows (MSI)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build the pharmacokinetic core
+        run: cargo build --release --manifest-path rust/Cargo.toml
+
+      - name: Build the app
+        run: flutter build windows --release
+
+      - name: Install WiX
+        run: choco install wixtoolset --no-progress -y
+
+      - name: Package the MSI
+        shell: pwsh
+        run: |
+          $version = ((Select-String -Path pubspec.yaml -Pattern '^version:').Line -split ':')[1].Trim() -split '\+' | Select-Object -First 1
+          ./packaging/windows/build_msi.ps1 -Version $version -OutFile "dist/Misaka-hrt-$version-windows-x64.msi"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: msi
+          path: dist/*.msi
+          if-no-files-found: error

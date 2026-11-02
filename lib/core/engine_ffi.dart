@@ -31,6 +31,13 @@ class HrtEngine {
     DynamicLibrary lib;
     if (Platform.isAndroid) {
       lib = DynamicLibrary.open('libhrt_core.so');
+    } else if (Platform.isIOS) {
+      // iOS cannot load a dylib that is not part of the bundle, so the core is
+      // built as a static library and linked into the app executable. Its
+      // symbols are in the process image, which is what `process()` exposes.
+      lib = DynamicLibrary.process();
+    } else if (Platform.isWindows) {
+      lib = _openDesktop('hrt_core.dll');
     } else if (Platform.isMacOS) {
       lib = _openDesktop('libhrt_core.dylib');
     } else if (Platform.isLinux) {
@@ -51,11 +58,15 @@ class HrtEngine {
   }
 
   static DynamicLibrary _openDesktop(String name) {
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
     final candidates = [
+      // Packaged builds: the library sits next to the executable.
+      '$exeDir/$name',
       'rust/target/release/$name',
       'rust/target/debug/$name',
       '../rust/target/release/$name',
       '../rust/target/debug/$name',
+      'build/windows/x64/runner/Release/$name',
     ];
     for (final path in candidates) {
       final file = File(path);

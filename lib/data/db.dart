@@ -1,8 +1,11 @@
 import 'dart:convert';
 
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../core/platform.dart';
 import 'models.dart';
 
 /// Local, on-device storage. There is no server and no account: a single
@@ -17,8 +20,7 @@ class AppDatabase {
   static Future<AppDatabase> open() async {
     final existing = _instance;
     if (existing != null) return existing;
-    final dir = await getDatabasesPath();
-    final path = p.join(dir, 'hrt_tracker.db');
+    final path = await _databasePath();
     final db = await openDatabase(
       path,
       version: 1,
@@ -118,6 +120,22 @@ class AppDatabase {
     );
     _instance = AppDatabase._(db);
     return _instance!;
+  }
+
+  /// Phones keep the database where the platform expects it, so the system
+  /// backup rules still find it. Windows and macOS have no sqflite backend of
+  /// their own, so the FFI build is used and the file lives in the app support
+  /// folder instead.
+  static Future<String> _databasePath() async {
+    if (Host.isDesktop) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+      final dir = await getApplicationSupportDirectory();
+      await dir.create(recursive: true);
+      return p.join(dir.path, 'hrt_tracker.db');
+    }
+    final dir = await getDatabasesPath();
+    return p.join(dir, 'hrt_tracker.db');
   }
 
   Database get raw => _db;

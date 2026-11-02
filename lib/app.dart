@@ -5,8 +5,10 @@ import 'package:provider/provider.dart';
 
 import 'core/l10n.dart';
 import 'core/notifications.dart';
+import 'core/platform.dart';
 import 'core/theme.dart';
 import 'state/app_state.dart';
+import 'ui/desktop/desktop_shell.dart';
 import 'ui/onboarding_page.dart';
 import 'ui/shell.dart';
 
@@ -65,12 +67,14 @@ class HrtApp extends StatelessWidget {
             mono: mono,
             dynamicSeed: seedOf(lightDynamic),
             useDynamic: state.useDynamicColor && !mono,
+            desktop: Host.isDesktop,
           ),
           darkTheme: AppTheme.build(
             brightness: Brightness.dark,
             mono: mono,
             dynamicSeed: seedOf(darkDynamic),
             useDynamic: state.useDynamicColor && !mono,
+            desktop: Host.isDesktop,
           ),
           locale: localeFor(state.lang),
           supportedLocales: const [
@@ -155,9 +159,14 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
     if (!state.ready) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    final home = !state.onboarded
+        ? const OnboardingPage()
+        : Host.isDesktop
+        ? const DesktopShell()
+        : const AppShell();
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 320),
-      child: state.onboarded ? const AppShell() : const OnboardingPage(),
+      child: home,
     );
   }
 }

@@ -11,6 +11,7 @@ abstract final class AppTheme {
     required bool mono,
     Color? dynamicSeed,
     bool useDynamic = false,
+    bool desktop = false,
   }) {
     // Material You hands us the wallpaper's primary colour; the seeded scheme is
     // then rebuilt from it with the fidelity variant so the palette stays close
@@ -28,8 +29,10 @@ abstract final class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       brightness: brightness,
-      visualDensity: VisualDensity.standard,
-      splashFactory: InkSparkle.splashFactory,
+      // A pointer is more precise than a fingertip, so the windowed build uses
+      // Material 3's comfortable density and a smaller ripple.
+      visualDensity: desktop ? VisualDensity.comfortable : VisualDensity.standard,
+      splashFactory: desktop ? InkRipple.splashFactory : InkSparkle.splashFactory,
     );
 
     final text = base.textTheme.copyWith(
@@ -77,21 +80,21 @@ abstract final class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(64, 48),
+          minimumSize: Size(64, desktop ? 40 : 48),
           shape: const StadiumBorder(),
           textStyle: text.labelLarge,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(64, 48),
+          minimumSize: Size(64, desktop ? 40 : 48),
           shape: const StadiumBorder(),
           textStyle: text.labelLarge,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          minimumSize: const Size(48, 44),
+          minimumSize: Size(48, desktop ? 36 : 44),
           shape: const StadiumBorder(),
         ),
       ),
@@ -155,6 +158,22 @@ abstract final class AppTheme {
       dividerTheme: DividerThemeData(
         color: scheme.outlineVariant.withValues(alpha: 0.6),
         thickness: 1,
+      ),
+      scrollbarTheme: desktop
+          ? ScrollbarThemeData(
+              thickness: const WidgetStatePropertyAll(8),
+              radius: const Radius.circular(4),
+              thumbColor: WidgetStateProperty.resolveWith(
+                (states) => states.contains(WidgetState.hovered)
+                    ? scheme.onSurface.withValues(alpha: 0.45)
+                    : scheme.onSurface.withValues(alpha: 0.25),
+              ),
+              crossAxisMargin: 2,
+            )
+          : null,
+      tooltipTheme: TooltipThemeData(
+        waitDuration: Duration(milliseconds: desktop ? 500 : 0),
+        textStyle: text.bodySmall?.copyWith(color: scheme.onInverseSurface),
       ),
       chipTheme: ChipThemeData(
         shape: const StadiumBorder(),

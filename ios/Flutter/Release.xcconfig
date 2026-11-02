@@ -1,0 +1,8 @@
+#include "Generated.xcconfig"
+
+// The pharmacokinetic core is a Rust static library, so the app bundle holds no
+// dylib of its own. A device archive and a simulator archive cannot be mixed in
+// one link, so each SDK points at its own slice; `rust/build_ios.sh` produces
+// both (`rust/target/ios-sim` is a fat arm64 + x86_64 archive).
+OTHER_LDFLAGS[sdk=iphoneos*]=$(inherited) -force_load "$(SRCROOT)/../rust/target/aarch64-apple-ios/release/libhrt_core.a"
+OTHER_LDFLAGS[sdk=iphonesimulator*]=$(inherited) -force_load "$(SRCROOT)/../rust/target/ios-sim/release/libhrt_core.a"

@@ -20,6 +20,23 @@ android/key.properties
 *.keystore
 .cxx/
 
+# --- iOS ----------------------------------------------------------------------
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/ephemeral/
+ios/Runner.xcworkspace/xcuserdata/
+ios/Runner.xcodeproj/xcuserdata/
+*.ipa
+
+# --- Windows ------------------------------------------------------------------
+windows/flutter/ephemeral/
+windows/runner/Release/
+windows/runner/Debug/
+*.msi
+packaging/windows/*.wixobj
+
 # --- Rust ---------------------------------------------------------------------
 rust/target/
 rust/Cargo.lock.bak
