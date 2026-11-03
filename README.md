@@ -102,6 +102,9 @@ windows/              CMake 工程，加载 hrt_core.dll
 packaging/windows/    WiX 源与 MSI 打包脚本
 test/ tool/           单元测试与离线校验脚本
 BUILD.md              三端构建与签名说明
+CONTRIBUTING.md       怎么改、守哪几条线
+SUPPORT.md            遇到问题先去哪
+SECURITY.md           隐私与漏洞的报告方式
 NOTICE.md             来源与第三方声明
 LICENSE               MIT
 ```
