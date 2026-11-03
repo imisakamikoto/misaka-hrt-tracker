@@ -57,10 +57,19 @@ flutter {
 // other clients. It is cross-compiled for every ABI before packaging. When the
 // Rust toolchain is not installed the task is skipped and the libraries already
 // in src/main/jniLibs are used, so a Flutter-only build still works.
-val cargoExecutable: String? = listOfNotNull(
-    System.getenv("CARGO_HOME"),
-    "${System.getProperty("user.home")}/.cargo",
-).map { "$it/bin/cargo" }.firstOrNull { File(it).canExecute() }
+// `file()` is relative to this module (android/app), so the Rust crate one level
+// up from the repository root is `rootProject.file("../rust")` — getting this
+// wrong made the task skip itself and ship whatever .so was last committed.
+val rustDir = rootProject.file("../rust")
+
+val cargoExecutable: String? = (
+    listOfNotNull(
+        System.getenv("CARGO_HOME"),
+        "${System.getProperty("user.home")}/.cargo",
+    ).map { "$it/bin/cargo" } + "cargo"
+    ).firstOrNull { command ->
+    if (command.contains('/')) File(command).canExecute() else true
+}
 
 val androidSdkDir: String? = run {
     val props = Properties()
@@ -72,8 +81,11 @@ val androidSdkDir: String? = run {
 tasks.register<Exec>("buildRustCore") {
     group = "build"
     description = "Cross-compiles rust/ into jniLibs for all Android ABIs"
-    workingDir = file("../rust")
-    onlyIf { cargoExecutable != null && file("../rust/Cargo.toml").exists() }
+    workingDir = rustDir
+    onlyIf { cargoExecutable != null && File(rustDir, "Cargo.toml").exists() }
+    inputs.dir(File(rustDir, "src"))
+    inputs.file(File(rustDir, "Cargo.toml"))
+    outputs.dir(file("src/main/jniLibs"))
     doFirst {
         val cargo = cargoExecutable ?: return@doFirst
         androidSdkDir?.let { environment("ANDROID_HOME", it) }

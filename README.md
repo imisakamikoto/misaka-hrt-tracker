@@ -24,11 +24,11 @@
 
 | 文件 | 平台 | 说明 |
 |---|---|---|
-| `Misaka-hrt-1.2.0-arm64-v8a.apk` | Android | 绝大多数手机（推荐） |
-| `Misaka-hrt-1.2.0-armeabi-v7a.apk` | Android | 老款 32 位机型 |
-| `Misaka-hrt-1.2.0-x86_64.apk` | Android | 模拟器 |
-| `Misaka-hrt-1.2.0-ios.ipa` | iOS | **未签名**，需用 AltStore / Sideloadly / Xcode 用你自己的 Apple ID 重签 |
-| `Misaka-hrt-1.2.0-windows-x64.msi` | Windows | 双击安装，开始菜单建快捷方式；需要 Windows 10 1809 以上（x64） |
+| `Misaka-hrt-1.2.1-arm64-v8a.apk` | Android | 绝大多数手机（推荐） |
+| `Misaka-hrt-1.2.1-armeabi-v7a.apk` | Android | 老款 32 位机型 |
+| `Misaka-hrt-1.2.1-x86_64.apk` | Android | 模拟器 |
+| `Misaka-hrt-1.2.1-ios.ipa` | iOS | **未签名**，需用 AltStore / Sideloadly / Xcode 用你自己的 Apple ID 重签 |
+| `Misaka-hrt-1.2.1-windows-x64.msi` | Windows | 双击安装，开始菜单建快捷方式；需要 Windows 10 1809 以上（x64） |
 
 Android 7（API 24）及以上，iOS 15 及以上，Windows 10 1809 / Windows 11。Android 版当前用 debug key 签名，直接安装即可；上架商店需要自建 keystore。iOS 未签名包只能自签安装，无法直接双击装进 iPhone——这是苹果的限制，本项目不附带证书。
 

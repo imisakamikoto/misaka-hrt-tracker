@@ -33,8 +33,16 @@ Finished files land in `build/app/outputs/flutter-apk/`.
 
 The Gradle task `buildRustCore` cross-compiles `rust/` into
 `android/app/src/main/jniLibs/{arm64-v8a,armeabi-v7a,x86_64}/libhrt_core.so`
-before packaging. If `cargo` is not installed the task is skipped and the
-libraries already in `jniLibs` are packaged instead.
+before packaging, so `flutter build apk` alone is enough. It resolves the crate
+through `rootProject` — `file("../rust")` would point at `android/rust`, the
+task would skip itself, and the APK would silently ship whatever `.so` was last
+committed. That is exactly how 1.2.0 shipped an ABI 1 core to phones.
+
+If `cargo` is not installed the task is skipped and the libraries already in
+`jniLibs` are packaged instead. Those committed binaries are a convenience for a
+Flutter-only build, not a source of truth: whenever `rust/` changes, rebuild
+them with the command below and commit the result, or the next `flutter build
+apk` on a machine without Rust will package the old core.
 
 To build the Rust core by hand:
 

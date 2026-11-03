@@ -34,6 +34,19 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
+      - name: Build the Rust core for every ABI
+        run: |
+          set -euo pipefail
+          export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_NDK_LATEST_HOME:-}}"
+          if [ -z "$ANDROID_NDK_HOME" ]; then
+            export ANDROID_NDK_HOME="$(ls -d "$ANDROID_HOME"/ndk/* 2>/dev/null | tail -1)"
+          fi
+          echo "NDK: $ANDROID_NDK_HOME"
+          cd rust
+          cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 \
+            -o ../android/app/src/main/jniLibs build --release
+          ls -lh ../android/app/src/main/jniLibs/*/libhrt_core.so
+
       - name: Build the APKs
         run: |
           set -euo pipefail
@@ -50,6 +63,21 @@ jobs:
                "dist/Misaka-hrt-$version-$abi.apk"
           done
           ls -lh dist
+
+      # A stale libhrt_core.so ships a core the Dart side cannot talk to, and the
+      # only symptom is "PK core ABI 1, expected 2" on a phone. Check the symbol
+      # the newest entry points need, in the library that actually got packaged.
+      - name: Prove the packaged core is the current one
+        run: |
+          set -euo pipefail
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            so="android/app/src/main/jniLibs/$abi/libhrt_core.so"
+            strings -a "$so" | grep -qx hrt_body \
+              || { echo "::error::$abi core has no hrt_body — it is stale"; exit 1; }
+            strings -a "$so" | grep -qx hrt_progress \
+              || { echo "::error::$abi core has no hrt_progress — it is stale"; exit 1; }
+            echo "$abi core ok ($(stat -c%s "$so" 2>/dev/null || stat -f%z "$so") bytes)"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
