@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用问题（怎么记录、怎么备份、怎么迁移）
+    url: https://github.com/imisakamikoto/misaka-hrt-tracker/discussions/categories/q-a
+    about: 先看 README 与 SUPPORT.md，还不清楚就在这里问。
+  - name: 报告隐私 / 安全问题
+    url: https://github.com/imisakamikoto/misaka-hrt-tracker/security/advisories/new
+    about: 请走私密渠道，不要开公开 issue。详见 SECURITY.md。
+  - name: 下载安装包
+    url: https://github.com/imisakamikoto/misaka-hrt-tracker/releases/latest
+    about: Android 三个 ABI、未签名 iOS IPA、Windows MSI。

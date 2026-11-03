@@ -1,0 +1,35 @@
+version: 2
+updates:
+  - package-ecosystem: pub
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      flutter:
+        patterns: ["flutter*", "material_*", "cupertino_icons"]
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: cargo
+    directory: "/rust"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(rust)"
+
+  - package-ecosystem: gradle
+    directory: "/android"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "deps(android)"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"

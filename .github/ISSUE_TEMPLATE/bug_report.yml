@@ -1,0 +1,74 @@
+name: 问题反馈
+description: 崩溃、显示错误、数据没保存、曲线明显不对
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        谢谢反馈。**请用自己编的样例数据**（比如 2mg EV 每周一次），不要贴真实的检验单
+        或用药记录。
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 具体一点 —— 点了哪里、看到什么、和预期差在哪。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开「记录」，新增一条 2mg / EV / 肌注，时间昨晚 21:00
+        2. 回到「概览」
+        3. 曲线峰值显示为 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      options:
+        - Android
+        - iOS
+        - Windows
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 应用版本与系统版本
+      description: 应用版本在「设置」页底部；系统版本在系统设置里。
+      placeholder: '1.1.1 (5) / Android 14'
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: 机型 / 屏幕
+      description: 安卓机型和厂商 ROM 有时很关键；桌面端写分辨率。
+      placeholder: 'Pixel 7 / Windows 11 24H2, 2560×1440'
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 你预期的结果
+      description: 如果和数字有关，说一下你是按什么推算的（哪篇资料、哪个换算）。
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 截图 / 日志
+      description: 截图直接拖进来即可。控制台的报错也贴这里。
+    validations:
+      required: false

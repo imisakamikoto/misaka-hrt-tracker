@@ -1,0 +1,56 @@
+name: 功能建议
+description: 想让它多做一件事，或某件事做得更顺手
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先说"你想回答什么问题"，再说"界面上该长什么样"。前者决定要不要做，后者决定怎么做。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题
+      description: 描述场景：你在做什么、卡在哪一步、现在只能怎么办。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你设想的样子
+      description: 可以只是大概的方向，不必是成品设计。
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 属于哪一块
+      options:
+        - 记录与历史
+        - 浓度曲线与预测
+        - 提醒
+        - 检验与校准
+        - 备份 / 导入导出
+        - 界面与无障碍
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 你试过的替代办法
+      description: 比如用别的应用、手算、导出到表格。这能说明需求有多真实。
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: 自检
+      options:
+        - label: 这个功能不需要联网（本项目坚持完全离线）
+        - label: 这属于记录/展示，而不是要应用替你决定用药方案

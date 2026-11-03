@@ -106,6 +106,17 @@ NOTICE.md             来源与第三方声明
 LICENSE               MIT
 ```
 
+## 参与 / Contributing
+
+个人维护的离线应用，欢迎 bug 报告、翻译和界面改进。
+
+- **怎么改、守哪几条线** → [CONTRIBUTING.md](CONTRIBUTING.md)（不联网、数据只在本机、模型层不做 I/O）
+- **提 issue 前先看** → [SUPPORT.md](SUPPORT.md)：使用问题去 Discussions，崩溃去 Issues，安全问题走私密渠道
+- **隐私与漏洞** → [SECURITY.md](SECURITY.md)
+- **行为准则** → [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+
+报 bug 时**请用自己编的样例数据**，不要贴真实的检验单或用药记录。
+
 ## 免责声明
 
 本应用给出的是**模型估算值，不是医疗建议**，也不能替代化验。用药请遵医嘱。
