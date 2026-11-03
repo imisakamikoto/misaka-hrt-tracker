@@ -24,11 +24,11 @@
 
 | 文件 | 平台 | 说明 |
 |---|---|---|
-| `Misaka-hrt-1.1.1-arm64-v8a.apk` | Android | 绝大多数手机（推荐） |
-| `Misaka-hrt-1.1.1-armeabi-v7a.apk` | Android | 老款 32 位机型 |
-| `Misaka-hrt-1.1.1-x86_64.apk` | Android | 模拟器 |
-| `Misaka-hrt-1.1.1-ios.ipa` | iOS | **未签名**，需用 AltStore / Sideloadly / Xcode 用你自己的 Apple ID 重签 |
-| `Misaka-hrt-1.1.1-windows-x64.msi` | Windows | 双击安装，开始菜单建快捷方式；需要 Windows 10 1809 以上（x64） |
+| `Misaka-hrt-1.2.0-arm64-v8a.apk` | Android | 绝大多数手机（推荐） |
+| `Misaka-hrt-1.2.0-armeabi-v7a.apk` | Android | 老款 32 位机型 |
+| `Misaka-hrt-1.2.0-x86_64.apk` | Android | 模拟器 |
+| `Misaka-hrt-1.2.0-ios.ipa` | iOS | **未签名**，需用 AltStore / Sideloadly / Xcode 用你自己的 Apple ID 重签 |
+| `Misaka-hrt-1.2.0-windows-x64.msi` | Windows | 双击安装，开始菜单建快捷方式；需要 Windows 10 1809 以上（x64） |
 
 Android 7（API 24）及以上，iOS 15 及以上，Windows 10 1809 / Windows 11。Android 版当前用 debug key 签名，直接安装即可；上架商店需要自建 keystore。iOS 未签名包只能自签安装，无法直接双击装进 iPhone——这是苹果的限制，本项目不附带证书。
 
@@ -38,6 +38,8 @@ Android 7（API 24）及以上，iOS 15 及以上，Windows 10 1809 / Windows 11
 - **估算**：目标带、当前浓度、CPA / 睾酮曲线，1 / 3 / 7 / 30 天窗口，拖动读数；此刻之后按用药计划画虚线预测。
 - **校准**：MIPD、扩展卡尔曼（EKF）、OU-Kalman，前向 / 回溯两种历史模式。
 - **检验**：录入结果（pg/mL、pmol/L、ng/dL、nmol/L），叠加到曲线并与模型对账。
+- **抗雄与长期**：螺内酯 / 醋酸环丙孕酮 / 比卡鲁胺 / 甲羟孕酮的剂量带、记录覆盖率与下一次到点提醒；一天 / 一月 / 一年三个窗口的最保守睾酮抑制率（Wilson 95% 单侧下界）与治疗有效率（模型目标带内时间占比与记录覆盖率的较小者）。
+- **胸围与罩杯**：上 / 下胸围记录一次即给出国标 / 欧码 / 英码 / 美码四种罩杯，按差值的增长曲线与下一个罩杯的预计月数；只报测量值，不设目标。
 - **计划与库存**：周期性方案、今日待服、下一次服药；库存剩余与用完日期。
 - **提醒**：模型预测浓度跌破目标带下沿前提醒服药（仅非注射方案），可选的到点提醒，精确闹钟不可用时自动降级；重启后由 `BOOT_COMPLETED` 接收器恢复。
 - **备份**：完整备份、仅记录、加密备份（PBKDF2-SHA256 600k + AES-256-GCM）、只读快照；导入兼容本项目四种历史格式，可合并或替换。

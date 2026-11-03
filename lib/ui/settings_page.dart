@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../core/l10n.dart';
 import '../state/app_state.dart';
 import 'backup_page.dart';
+import 'blockade_page.dart';
+import 'body_page.dart';
 import 'calibration_page.dart';
 import 'settings_pages.dart';
 import 'widgets/common.dart';
@@ -187,6 +189,36 @@ class SettingsPage extends StatelessWidget {
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) => const CalibrationPage(),
+                          ),
+                        ),
+                      ),
+                      SettingsTile(
+                        leading: const Icon(Icons.shield_outlined),
+                        title: l10n.t('settings.blockade'),
+                        subtitle: state.blockade == null
+                            ? (l10n.lang.startsWith('zh') ? '暂无记录' : 'No data')
+                            : (l10n.lang.startsWith('zh')
+                                  ? '${state.blockade!.compounds.length} 种抗雄药'
+                                  : '${state.blockade!.compounds.length} compound(s)'),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const BlockadePage(),
+                          ),
+                        ),
+                      ),
+                      SettingsTile(
+                        leading: const Icon(Icons.straighten),
+                        title: l10n.t('settings.body'),
+                        subtitle: state.bodyReport == null
+                            ? (l10n.lang.startsWith('zh') ? '暂无记录' : 'No data')
+                            : (state.bodyReport!.sizes.isEmpty
+                                  ? (l10n.lang.startsWith('zh')
+                                        ? '只有胸围'
+                                        : 'Bust only')
+                                  : state.bodyReport!.sizes.first.label),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const BodyPage(),
                           ),
                         ),
                       ),

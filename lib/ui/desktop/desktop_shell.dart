@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../../core/domain.dart';
 import '../../core/l10n.dart';
 import '../../core/platform.dart';
-import '../../data/models.dart';
 import '../../state/app_state.dart';
 import '../dose_page.dart';
 import '../forecast_page.dart';
@@ -115,7 +114,6 @@ class _DesktopShellState extends State<DesktopShell> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
 
     final pages = <Widget>[

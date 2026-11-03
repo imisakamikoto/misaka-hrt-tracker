@@ -54,12 +54,15 @@ impl Ester {
     pub fn is_unmodelled(self) -> bool {
         matches!(
             self,
-            Ester::SPIRO | Ester::BICA | Ester::MPA | Ester::LEUP | Ester::TRIP | Ester::RLX
+            Ester::BICA | Ester::MPA | Ester::LEUP | Ester::TRIP | Ester::RLX
         )
     }
 
     pub fn is_estradiol(self) -> bool {
-        !self.is_testosterone() && self != Ester::CPA && !self.is_unmodelled()
+        !self.is_testosterone()
+            && self != Ester::CPA
+            && self != Ester::SPIRO
+            && !self.is_unmodelled()
     }
 
     /// Molecular weight, g/mol.
@@ -151,8 +154,7 @@ impl DoseEvent {
     }
 
     pub fn planned_wear_h(&self) -> Option<f64> {
-        self.extra(EXTRA_PATCH_WEAR)
-            .filter(|v| *v > 0.0)
+        self.extra(EXTRA_PATCH_WEAR).filter(|v| *v > 0.0)
     }
 
     pub fn hormone(&self) -> Option<&'static str> {
@@ -208,8 +210,12 @@ pub struct LabResult {
 }
 
 /// Tunable PK parameters, all settable in the app's advanced screen.
+///
+/// A caller may send a subset: every missing field falls back to
+/// [`PkParams::default`]. Without that, adding a parameter would break every
+/// client that stored a settings object built against an older release.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct PkParams {
     pub e2_k_clear: f64,
     pub e2_k_clear_inj: f64,
@@ -234,6 +240,15 @@ pub struct PkParams {
     pub t_gel_arm: f64,
     pub t_gel_thigh: f64,
     pub t_gel_scrotal: f64,
+    /// Fraction of an oral spironolactone dose that reaches canrenone:
+    /// absorption (~0.65) × hepatic conversion (~0.80).
+    pub spiro_f_canrenone: f64,
+    /// Absorption rate of spironolactone itself, /h.
+    pub spiro_k_abs: f64,
+    /// Conversion of spironolactone to canrenone, /h.
+    pub spiro_k_convert: f64,
+    /// Canrenone elimination, /h. Default is a 19 h half-life.
+    pub spiro_k_clear: f64,
 }
 
 impl Default for PkParams {
@@ -262,6 +277,10 @@ impl Default for PkParams {
             t_gel_arm: 0.1,
             t_gel_thigh: 0.1,
             t_gel_scrotal: 0.5,
+            spiro_f_canrenone: 0.52,
+            spiro_k_abs: 1.386,
+            spiro_k_convert: 0.495,
+            spiro_k_clear: 0.0365,
         }
     }
 }
@@ -305,7 +324,45 @@ impl PkParams {
             (&mut self.t_gel_arm, (0.0, 1.0)),
             (&mut self.t_gel_thigh, (0.0, 1.0)),
             (&mut self.t_gel_scrotal, (0.0, 1.0)),
+            (&mut self.spiro_f_canrenone, (0.05, 1.0)),
+            (&mut self.spiro_k_abs, (0.05, 10.0)),
+            (&mut self.spiro_k_convert, (0.02, 5.0)),
+            (&mut self.spiro_k_clear, (0.005, 0.5)),
         ]
+    }
+}
+
+/// The window a person is trying to stay inside, in the model's own unit
+/// (pg/mL for estradiol, ng/dL for testosterone).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TargetRange {
+    pub low: f64,
+    pub high: f64,
+}
+
+impl TargetRange {
+    pub fn new(low: f64, high: f64) -> Self {
+        if low <= high {
+            TargetRange { low, high }
+        } else {
+            TargetRange {
+                low: high,
+                high: low,
+            }
+        }
+    }
+
+    pub fn normalized(self) -> Option<Self> {
+        if self.low.is_finite() && self.high.is_finite() && self.low > 0.0 && self.high > self.low {
+            Some(TargetRange::new(self.low, self.high))
+        } else {
+            None
+        }
+    }
+
+    pub fn contains(self, value: f64) -> bool {
+        value >= self.low && value <= self.high
     }
 }
 
@@ -317,7 +374,13 @@ pub struct SimulationResult {
     pub e2_pg_ml: Vec<f64>,
     pub cpa_ng_ml: Vec<f64>,
     pub t_ng_dl: Vec<f64>,
+    /// Canrenone, the active metabolite of spironolactone, in ng/mL.
+    #[serde(default)]
+    pub spiro_ng_ml: Vec<f64>,
     pub auc: f64,
+    /// Area under the canrenone curve over the same window, ng/mL·h.
+    #[serde(default)]
+    pub spiro_auc: f64,
 }
 
 impl SimulationResult {
@@ -417,5 +480,171 @@ mod tests {
         };
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("\"doseMG\":2.0"), "{json}");
+    }
+}
+
+// --- Stable codes, for the wire format and the catalogue -------------------
+
+impl Ester {
+    /// Every ester the engine knows, in a fixed order.
+    pub const ALL: [Ester; 17] = [
+        Ester::E2,
+        Ester::EB,
+        Ester::EV,
+        Ester::EC,
+        Ester::EN,
+        Ester::EU,
+        Ester::CPA,
+        Ester::SPIRO,
+        Ester::BICA,
+        Ester::MPA,
+        Ester::LEUP,
+        Ester::TRIP,
+        Ester::RLX,
+        Ester::T,
+        Ester::TC,
+        Ester::TE,
+        Ester::TU,
+    ];
+
+    /// The code used in storage, backups and this ABI (`EV`, `TC`, …).
+    pub fn code(self) -> &'static str {
+        match self {
+            Ester::E2 => "E2",
+            Ester::EB => "EB",
+            Ester::EV => "EV",
+            Ester::EC => "EC",
+            Ester::EN => "EN",
+            Ester::EU => "EU",
+            Ester::CPA => "CPA",
+            Ester::SPIRO => "SPIRO",
+            Ester::BICA => "BICA",
+            Ester::MPA => "MPA",
+            Ester::LEUP => "LEUP",
+            Ester::TRIP => "TRIP",
+            Ester::RLX => "RLX",
+            Ester::T => "T",
+            Ester::TC => "TC",
+            Ester::TE => "TE",
+            Ester::TU => "TU",
+        }
+    }
+
+    /// Reverse of [`Ester::code`], case-insensitive. Treatment names
+    /// (`estradiol_valerate`, `testosterone-enanthate`) are also accepted so a
+    /// caller does not have to know the storage spelling.
+    pub fn from_code(text: &str) -> Option<Ester> {
+        let key: String = text
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric())
+            .map(|c| c.to_ascii_lowercase())
+            .collect();
+        Some(match key.as_str() {
+            "e2" | "estradiol" => Ester::E2,
+            "eb" | "estradiolbenzoate" => Ester::EB,
+            "ev" | "estradiolvalerate" => Ester::EV,
+            "ec" | "estradiolcypionate" => Ester::EC,
+            "en" | "estradiolenanthate" => Ester::EN,
+            "eu" | "estradiolundecylate" => Ester::EU,
+            "cpa" | "cyproterone" | "cyproteroneacetate" => Ester::CPA,
+            "spiro" | "spironolactone" => Ester::SPIRO,
+            "bica" | "bicalutamide" => Ester::BICA,
+            "mpa" | "medroxyprogesterone" => Ester::MPA,
+            "leup" | "leuprolide" => Ester::LEUP,
+            "trip" | "triptorelin" => Ester::TRIP,
+            "rlx" | "relugolix" => Ester::RLX,
+            "t" | "testosterone" => Ester::T,
+            "tc" | "testosteronecypionate" => Ester::TC,
+            "te" | "testosteroneenanthate" => Ester::TE,
+            "tu" | "testosteroneundecanoate" => Ester::TU,
+            _ => return None,
+        })
+    }
+
+    /// `"e2"`, `"t"`, `"cpa"`, `"spiro"` — or `None` when the compound is not
+    /// modelled at all.
+    ///
+    /// Spironolactone reports its active metabolite, canrenone: the parent drug
+    /// is gone within hours while canrenone carries the effect.
+    pub fn hormone(self) -> Option<&'static str> {
+        if self.is_testosterone() {
+            Some("t")
+        } else if self == Ester::CPA {
+            Some("cpa")
+        } else if self == Ester::SPIRO {
+            Some("spiro")
+        } else if self.is_estradiol() {
+            Some("e2")
+        } else {
+            None
+        }
+    }
+}
+
+impl Route {
+    pub const ALL: [Route; 6] = [
+        Route::Sublingual,
+        Route::Injection,
+        Route::PatchApply,
+        Route::PatchRemove,
+        Route::Gel,
+        Route::Oral,
+    ];
+
+    pub fn code(self) -> &'static str {
+        match self {
+            Route::Sublingual => "sublingual",
+            Route::Injection => "injection",
+            Route::PatchApply => "patchApply",
+            Route::PatchRemove => "patchRemove",
+            Route::Gel => "gel",
+            Route::Oral => "oral",
+        }
+    }
+}
+
+impl LabUnit {
+    pub const ALL: [LabUnit; 4] = [LabUnit::PgMl, LabUnit::PmolL, LabUnit::NgDl, LabUnit::NmolL];
+
+    pub fn code(self) -> &'static str {
+        match self {
+            LabUnit::PgMl => "pg/ml",
+            LabUnit::PmolL => "pmol/l",
+            LabUnit::NgDl => "ng/dl",
+            LabUnit::NmolL => "nmol/l",
+        }
+    }
+
+    pub fn from_code(text: &str) -> Option<LabUnit> {
+        let key: String = text
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric())
+            .map(|c| c.to_ascii_lowercase())
+            .collect();
+        Some(match key.as_str() {
+            "pgml" | "pg" => LabUnit::PgMl,
+            "pmoll" | "pmol" => LabUnit::PmolL,
+            "ngdl" | "ng" => LabUnit::NgDl,
+            "nmoll" | "nmol" => LabUnit::NmolL,
+            _ => return None,
+        })
+    }
+
+    /// Convert a value from this unit into `to`.
+    ///
+    /// Mass and molar units are tied together by the analyte's molecular
+    /// weight, so estradiol and testosterone need different constants; the
+    /// unit chosen decides which one is applied.
+    pub fn convert(self, value: f64, to: LabUnit) -> f64 {
+        if self == to {
+            return value;
+        }
+        // Everything goes through the model's own mass unit first.
+        let model = self.to_model_unit(value);
+        match to {
+            LabUnit::PgMl | LabUnit::NgDl => model,
+            LabUnit::PmolL => model * 3.671,
+            LabUnit::NmolL => model / 28.842,
+        }
     }
 }

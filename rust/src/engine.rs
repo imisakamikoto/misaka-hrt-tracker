@@ -16,6 +16,9 @@ const LN2: f64 = std::f64::consts::LN_2;
 const VD_PER_KG_E2: f64 = 2.0;
 const VD_PER_KG_CPA: f64 = 14.0;
 const VD_PER_KG_T: f64 = 1.0;
+/// Canrenone distributes widely; this volume puts 100 mg/day at the
+/// 200–400 ng/mL steady state reported for that dose.
+const VD_PER_KG_SPIRO: f64 = 2.8;
 
 const AGE_REF_YEARS: f64 = 54.0;
 const AGE_MIN: f64 = 19.0;
@@ -151,7 +154,12 @@ fn oral_ke1_pool() -> f64 {
     LN2 / 14.36
 }
 
-const SL_TIERS: [(&str, f64); 4] = [("quick", 2.0), ("casual", 5.0), ("standard", 10.0), ("strict", 15.0)];
+const SL_TIERS: [(&str, f64); 4] = [
+    ("quick", 2.0),
+    ("casual", 5.0),
+    ("standard", 10.0),
+    ("strict", 15.0),
+];
 
 // --- Cyproterone acetate, by mouth only ----------------------------------
 
@@ -306,11 +314,12 @@ pub fn sublingual_theta_from_hold(params: &PkParams, hold_min: f64) -> f64 {
             return (t1 + (t2 - t1) * frac).clamp(0.0, 1.0);
         }
     }
-    let slope = (points[1].1 - points[0].1) / if (points[1].0 - points[0].0) == 0.0 {
-        1.0
-    } else {
-        points[1].0 - points[0].0
-    };
+    let slope = (points[1].1 - points[0].1)
+        / if (points[1].0 - points[0].0) == 0.0 {
+            1.0
+        } else {
+            points[1].0 - points[0].0
+        };
     (points[0].1 + (h - points[0].0) * slope).clamp(0.0, 1.0)
 }
 
@@ -347,11 +356,12 @@ pub fn sublingual_hold_from_theta(params: &PkParams, theta: f64) -> f64 {
             return h1 + (h2 - h1) * frac;
         }
     }
-    let slope = (points[1].0 - points[0].0) / if (points[1].1 - points[0].1) == 0.0 {
-        1.0
-    } else {
-        points[1].1 - points[0].1
-    };
+    let slope = (points[1].0 - points[0].0)
+        / if (points[1].1 - points[0].1) == 0.0 {
+            1.0
+        } else {
+            points[1].1 - points[0].1
+        };
     (points[0].0 + (theta - points[0].1) * slope).max(1.0)
 }
 
@@ -414,7 +424,22 @@ pub fn bioavailability(params: &PkParams, event: &DoseEvent) -> f64 {
     let mw_factor = event.ester.to_active_factor();
 
     if event.ester == Ester::CPA {
-        return if event.route == Route::Oral { CpaOral::F } else { 0.0 };
+        return if event.route == Route::Oral {
+            CpaOral::F
+        } else {
+            0.0
+        };
+    }
+
+    if event.ester == Ester::SPIRO {
+        // Already a fraction of the dose reaching canrenone: absorption and
+        // hepatic conversion together. No molecular-weight factor applies,
+        // because the reported curve is the metabolite itself.
+        return if event.route == Route::Oral {
+            params.spiro_f_canrenone
+        } else {
+            0.0
+        };
     }
 
     if event.ester.is_testosterone() {
@@ -459,7 +484,8 @@ fn resolve_params(
     } else {
         params.e2_k_clear
     };
-    let default_k3 = e2_clear * age_clearance_multiplier("e2", birth_year, event.time_h) * clearance_mult;
+    let default_k3 =
+        e2_clear * age_clearance_multiplier("e2", birth_year, event.time_h) * clearance_mult;
 
     if event.ester.is_testosterone() {
         let t_clear = if event.route.is_injection() {
@@ -467,7 +493,8 @@ fn resolve_params(
         } else {
             params.t_k_clear
         };
-        let tk3 = t_clear * age_clearance_multiplier("t", birth_year, event.time_h) * clearance_mult;
+        let tk3 =
+            t_clear * age_clearance_multiplier("t", birth_year, event.time_h) * clearance_mult;
         return match event.route {
             Route::Injection => {
                 if event.ester == Ester::T {
@@ -652,6 +679,22 @@ fn resolve_params(
                     f_slow: CpaOral::F,
                 };
             }
+            if event.ester == Ester::SPIRO {
+                // `f` is absorption × conversion, so the amount that reaches
+                // the canrenone compartment already includes both losses.
+                return ResolvedParams {
+                    frac_fast: 1.0,
+                    k1_fast: params.spiro_k_abs,
+                    k1_slow: 0.0,
+                    k2: params.spiro_k_convert,
+                    k2_slow: None,
+                    k3: params.spiro_k_clear,
+                    f: params.spiro_f_canrenone,
+                    rate_mg_h: 0.0,
+                    f_fast: params.spiro_f_canrenone,
+                    f_slow: params.spiro_f_canrenone,
+                };
+            }
             let to_active = event.ester.to_active_factor();
             let f = params.e2_oral_bio * to_active;
             ResolvedParams {
@@ -792,6 +835,14 @@ fn patch_removal_times(events: &[DoseEvent]) -> HashMap<usize, f64> {
     pairs
 }
 
+/// The pairing between patch applications and the removals that ended them.
+///
+/// Exposed because a client showing "this patch has been on for 78 hours"
+/// should use the same inference the curve does, not a second implementation.
+pub fn patch_pairs(events: &[DoseEvent]) -> HashMap<usize, f64> {
+    patch_removal_times(events)
+}
+
 fn resolve_patch_wear_h(index: usize, events: &[DoseEvent], pairs: &HashMap<usize, f64>) -> f64 {
     let e = &events[index];
     if let Some(remove_at) = pairs.get(&index) {
@@ -808,9 +859,16 @@ enum Shape {
     Injection,
     OralOrGel,
     CpaOral,
+    /// Oral spironolactone: absorption → hepatic conversion to canrenone →
+    /// canrenone elimination. Three steps, because the metabolite is what
+    /// accumulates and what the effect follows.
+    SpiroOral,
     Sublingual,
     /// `zero_order` is true when a labelled release rate drives the input.
-    Patch { wear_h: f64, zero_order: bool },
+    Patch {
+        wear_h: f64,
+        zero_order: bool,
+    },
     None,
 }
 
@@ -829,6 +887,8 @@ impl EventModel {
             Route::Oral => {
                 if event.ester == Ester::CPA {
                     Shape::CpaOral
+                } else if event.ester == Ester::SPIRO {
+                    Shape::SpiroOral
                 } else {
                     Shape::OralOrGel
                 }
@@ -869,9 +929,21 @@ impl EventModel {
                 }
             }
             Shape::CpaOral => {
-                analytic2c(tau, dose, CpaOral::F * CpaOral::W_FAST, CpaOral::KA, CpaOral::ALPHA)
-                    + analytic2c(tau, dose, CpaOral::F * CpaOral::w_slow(), CpaOral::KA, CpaOral::beta())
+                analytic2c(
+                    tau,
+                    dose,
+                    CpaOral::F * CpaOral::W_FAST,
+                    CpaOral::KA,
+                    CpaOral::ALPHA,
+                ) + analytic2c(
+                    tau,
+                    dose,
+                    CpaOral::F * CpaOral::w_slow(),
+                    CpaOral::KA,
+                    CpaOral::beta(),
+                )
             }
+            Shape::SpiroOral => analytic3c(tau, dose, p.f, p.k1_fast, p.k2, p.k3),
             Shape::OralOrGel => {
                 if p.k2 > 0.0 {
                     analytic3c(tau, dose, p.f, p.k1_fast, p.k2, p.k3)
@@ -947,6 +1019,49 @@ impl EventModel {
     }
 }
 
+/// How the output grid is chosen.
+///
+/// With no overrides the grid spans a day before the first dose to two weeks
+/// after the last one (or a day past `now_h`), with extra samples right after
+/// every dose so a peak is never missed. A caller that wants a uniform grid —
+/// for statistics, for a chart with a fixed window — sets `start_h`, `end_h`
+/// and `step_h`, and the refinement samples are dropped.
+#[derive(Debug, Clone, Copy)]
+pub struct SimGrid {
+    pub start_h: Option<f64>,
+    pub end_h: Option<f64>,
+    pub step_h: Option<f64>,
+    pub max_points: usize,
+}
+
+impl Default for SimGrid {
+    fn default() -> Self {
+        SimGrid {
+            start_h: None,
+            end_h: None,
+            step_h: None,
+            max_points: 100_000,
+        }
+    }
+}
+
+impl SimGrid {
+    /// A uniform grid over `[start_h, end_h]` with roughly `step_h` spacing.
+    pub fn uniform(start_h: f64, end_h: f64, step_h: f64) -> Self {
+        SimGrid {
+            start_h: Some(start_h),
+            end_h: Some(end_h),
+            step_h: Some(step_h),
+            ..SimGrid::default()
+        }
+    }
+
+    pub fn with_max_points(mut self, max_points: usize) -> Self {
+        self.max_points = max_points;
+        self
+    }
+}
+
 /// Run the model over a time grid and return E2, CPA and T curves.
 ///
 /// `now_h` is passed in rather than read from the clock so results are
@@ -958,6 +1073,27 @@ pub fn run_simulation(
     params: &PkParams,
     now_h: f64,
     clearance_mult: f64,
+) -> Option<SimulationResult> {
+    run_simulation_grid(
+        events,
+        body_weight_kg,
+        birth_year,
+        params,
+        now_h,
+        clearance_mult,
+        &SimGrid::default(),
+    )
+}
+
+/// Same as [`run_simulation`], with control over the output window and step.
+pub fn run_simulation_grid(
+    events: &[DoseEvent],
+    body_weight_kg: f64,
+    birth_year: Option<f64>,
+    params: &PkParams,
+    now_h: f64,
+    clearance_mult: f64,
+    grid: &SimGrid,
 ) -> Option<SimulationResult> {
     let mut usable: Vec<DoseEvent> = events
         .iter()
@@ -1010,37 +1146,53 @@ pub fn run_simulation(
         return None;
     }
 
-    let start_time = usable[0].time_h - 24.0;
+    let default_start = usable[0].time_h - 24.0;
     let last_time = usable[usable.len() - 1].time_h;
-    let end_time = (last_time + 24.0 * 14.0).max(now_h + 24.0);
-    if !(end_time > start_time) || !end_time.is_finite() {
+    let default_end = (last_time + 24.0 * 14.0).max(now_h + 24.0);
+
+    let start_time = grid.start_h.unwrap_or(default_start);
+    let end_time = match grid.end_h {
+        Some(end) => end.max(start_time + 1.0),
+        None => default_end,
+    };
+    if !(end_time > start_time) || !end_time.is_finite() || !start_time.is_finite() {
         return None;
     }
 
+    let max_points = grid.max_points.clamp(16, 1_000_000);
     let total_hours = end_time - start_time;
-    let steps = (total_hours.ceil() as i64).clamp(2000, 100_000) as usize;
+    let steps = match grid.step_h.filter(|s| *s > 0.0 && s.is_finite()) {
+        Some(step) => ((total_hours / step).ceil() as usize + 1).clamp(2, max_points),
+        None => (total_hours.ceil() as i64).clamp(2000, 100_000) as usize,
+    };
 
     let plasma_e2 = VD_PER_KG_E2 * body_weight_kg * 1000.0;
     let plasma_cpa = VD_PER_KG_CPA * body_weight_kg * 1000.0;
     let plasma_t = VD_PER_KG_T * body_weight_kg * 1000.0;
+    let plasma_spiro = VD_PER_KG_SPIRO * body_weight_kg * 1000.0;
 
     let step = (end_time - start_time) / (steps - 1).max(1) as f64;
     let mut times: Vec<f64> = (0..steps).map(|i| start_time + i as f64 * step).collect();
 
-    let offsets = [0.25, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 24.0, 48.0];
-    for pc in &prepared {
-        for off in offsets {
-            if off > pc.max_lifetime {
-                break;
-            }
-            let t = pc.start_h + off;
-            if t >= start_time && t <= end_time {
-                times.push(t);
+    // Dense samples right after a dose catch the peak of a fast route; a
+    // caller-provided step already asks for its own resolution, so they are
+    // only added for the automatic grid.
+    if grid.step_h.is_none() {
+        let offsets = [0.25, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 24.0, 48.0];
+        for pc in &prepared {
+            for off in offsets {
+                if off > pc.max_lifetime {
+                    break;
+                }
+                let t = pc.start_h + off;
+                if t >= start_time && t <= end_time {
+                    times.push(t);
+                }
             }
         }
-    }
-    for e in &usable {
-        times.push(e.time_h);
+        for e in &usable {
+            times.push(e.time_h);
+        }
     }
     if now_h >= start_time && now_h <= end_time {
         times.push(now_h);
@@ -1054,7 +1206,9 @@ pub fn run_simulation(
         e2_pg_ml: Vec::with_capacity(times.len()),
         cpa_ng_ml: Vec::with_capacity(times.len()),
         t_ng_dl: Vec::with_capacity(times.len()),
+        spiro_ng_ml: Vec::with_capacity(times.len()),
         auc: 0.0,
+        spiro_auc: 0.0,
     };
 
     let mut activate_idx = 0usize;
@@ -1078,11 +1232,14 @@ pub fn run_simulation(
         let mut amount_e2 = 0.0;
         let mut amount_cpa = 0.0;
         let mut amount_t = 0.0;
+        let mut amount_spiro = 0.0;
         for idx in &active {
             let pc = &prepared[*idx];
             let a = pc.model.amount(*t);
             if pc.ester == Ester::CPA {
                 amount_cpa += a;
+            } else if pc.ester == Ester::SPIRO {
+                amount_spiro += a;
             } else if pc.ester.is_testosterone() {
                 amount_t += a;
             } else {
@@ -1093,17 +1250,21 @@ pub fn run_simulation(
         let e2 = (amount_e2 * 1e9) / plasma_e2;
         let cpa = (amount_cpa * 1e6) / plasma_cpa;
         let tconc = (amount_t * 1e8) / plasma_t;
+        let spiro = (amount_spiro * 1e6) / plasma_spiro;
 
         if i > 0 {
             let dt = t - times[i - 1];
             let prev = *out.e2_pg_ml.last().unwrap_or(&0.0);
             out.auc += 0.5 * (e2 + prev) * dt;
+            let prev_spiro = *out.spiro_ng_ml.last().unwrap_or(&0.0);
+            out.spiro_auc += 0.5 * (spiro + prev_spiro) * dt;
         }
 
         out.time_h.push(*t);
         out.e2_pg_ml.push(e2);
         out.cpa_ng_ml.push(cpa);
         out.t_ng_dl.push(tconc);
+        out.spiro_ng_ml.push(spiro);
     }
 
     Some(out)
@@ -1152,7 +1313,14 @@ mod tests {
         let params = PkParams::default();
         let start = 24.0 * 400.0;
         let events: Vec<_> = (0..12)
-            .map(|w| ev(Route::Injection, Ester::EV, 4.0, start + w as f64 * 24.0 * 7.0))
+            .map(|w| {
+                ev(
+                    Route::Injection,
+                    Ester::EV,
+                    4.0,
+                    start + w as f64 * 24.0 * 7.0,
+                )
+            })
             .collect();
         let sim = run_simulation(&events, 70.0, None, &params, start + 11.0 * 168.0, 1.0).unwrap();
         let peak = sim.e2_pg_ml.iter().cloned().fold(0.0, f64::max);

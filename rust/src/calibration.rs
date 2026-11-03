@@ -333,16 +333,10 @@ pub fn calibrate(input: CalibrationInput<'_>) -> CalibrationResult {
             // clearance from amplitude: the fit would trade one against the
             // other and land anywhere. With no identifiable clearance the
             // correction is the geometric mean of the observed ratios.
-            let span_h = points
-                .last()
-                .map(|p| p.time_h)
-                .unwrap_or(0.0)
+            let span_h = points.last().map(|p| p.time_h).unwrap_or(0.0)
                 - points.first().map(|p| p.time_h).unwrap_or(0.0);
             if points.len() < 2 || span_h < 48.0 {
-                let mean = points
-                    .iter()
-                    .map(|p| (p.obs / p.model).ln())
-                    .sum::<f64>()
+                let mean = points.iter().map(|p| (p.obs / p.model).ln()).sum::<f64>()
                     / points.len() as f64;
                 let factor = clamp_factor(mean.exp());
                 let segments = vec![FactorSegment {
@@ -428,6 +422,10 @@ mod tests {
             now_h: start + 40.0 * 24.0,
         });
         assert_eq!(result.n, 1);
-        assert!(result.scale > 1.4 && result.scale < 2.6, "scale {}", result.scale);
+        assert!(
+            result.scale > 1.4 && result.scale < 2.6,
+            "scale {}",
+            result.scale
+        );
     }
 }

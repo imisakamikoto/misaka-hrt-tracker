@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../core/domain.dart';
+import '../core/engine_models.dart';
 import '../core/l10n.dart';
 import '../data/models.dart';
 import '../state/app_state.dart';
@@ -20,6 +21,7 @@ class HomePage extends StatefulWidget {
     required this.onOpenLabs,
     required this.onLogDose,
     required this.onOpenForecast,
+    required this.onOpenBlockade,
   });
 
   final VoidCallback onOpenPlan;
@@ -27,6 +29,7 @@ class HomePage extends StatefulWidget {
   final VoidCallback onOpenLabs;
   final VoidCallback onLogDose;
   final VoidCallback onOpenForecast;
+  final VoidCallback onOpenBlockade;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -96,6 +99,14 @@ class _HomePageState extends State<HomePage> {
               if (advisory != null) ...[
                 const SizedBox(height: 12),
                 _AdvisoryBanner(kind: advisory.kind),
+              ],
+              if (state.blockade != null &&
+                  state.blockade!.compounds.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _BlockadeCard(
+                  report: state.blockade!,
+                  onOpen: widget.onOpenBlockade,
+                ),
               ],
               const SizedBox(height: 8),
               SectionHeader(
@@ -752,6 +763,131 @@ class _SupplyWarning extends StatelessWidget {
             color: scheme.onTertiaryContainer.withValues(alpha: 0.8),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// One line per anti-androgen: whether the dose sits in a used range and
+/// whether the schedule is drifting. The page behind it holds the detail.
+class _BlockadeCard extends StatelessWidget {
+  const _BlockadeCard({required this.report, required this.onOpen});
+
+  final BlockadeReport report;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final late = report.compounds
+        .where((c) => c.overdueH > 1)
+        .toList(growable: false);
+    final headline = late.isEmpty
+        ? report.compounds
+              .map((c) => c.name)
+              .toSet()
+              .join(' · ')
+        : l10n
+              .t('blockade.dueOverdue')
+              .replaceAll('{drug}', late.first.name)
+              .replaceAll(
+                '{hours}',
+                late.first.overdueH.round().toString(),
+              );
+
+    return Card(
+      color: late.isEmpty ? null : scheme.errorContainer,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.shield_outlined,
+                    size: 18,
+                    color: late.isEmpty ? scheme.primary : scheme.error,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l10n.t('home.blockade'),
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: scheme.outline),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                headline,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: late.isEmpty
+                      ? scheme.onSurfaceVariant
+                      : scheme.onErrorContainer,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final c in report.compounds)
+                    _BandPill(
+                      label: '${c.name} ${_mg(c.dailyMG)} mg',
+                      band: c.band,
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _mg(double v) =>
+      v == v.roundToDouble() ? v.round().toString() : v.toStringAsFixed(1);
+}
+
+class _BandPill extends StatelessWidget {
+  const _BandPill({required this.label, required this.band});
+
+  final String label;
+  final String band;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final ok = band == 'typical';
+    final over = band == 'aboveCeiling' || band == 'high';
+    final tone = ok
+        ? scheme.primaryContainer
+        : over
+        ? scheme.errorContainer
+        : scheme.surfaceContainerHighest;
+    final text = ok
+        ? scheme.onPrimaryContainer
+        : over
+        ? scheme.onErrorContainer
+        : scheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: tone,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label · ${l10n.t('blockade.band.$band')}',
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: text),
       ),
     );
   }

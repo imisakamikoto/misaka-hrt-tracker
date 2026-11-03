@@ -62,16 +62,21 @@ enum Ester {
       this == T || this == TC || this == TE || this == TU;
 
   bool get isUnmodelled =>
-      this == SPIRO ||
-      this == BICA ||
-      this == MPA ||
-      this == LEUP ||
-      this == TRIP ||
-      this == RLX;
+      this == BICA || this == MPA || this == LEUP || this == TRIP || this == RLX;
 
-  bool get isEstradiol => !isTestosterone && this != CPA && !isUnmodelled;
+  bool get isEstradiol =>
+      !isTestosterone && this != CPA && this != SPIRO && !isUnmodelled;
 
   bool get isGnrhAgonist => this == LEUP || this == TRIP;
+
+  /// Receptor blockers and gonadotropin suppressors, which the app treats as
+  /// one group for reminders and dose assessment while keeping their
+  /// mechanisms apart.
+  bool get isAntiAndrogen =>
+      this == SPIRO || this == CPA || this == BICA || this == MPA;
+
+  /// Spironolactone is modelled as canrenone, its active metabolite.
+  bool get usesCanrenoneCurve => this == SPIRO;
 
   /// mg of active hormone per mg of logged ester.
   double get toActiveFactor {
@@ -277,6 +282,69 @@ class LabResult {
     concValue: concValue ?? this.concValue,
     unit: unit ?? this.unit,
     assay: assay ?? this.assay,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+}
+
+/// One tape-measure session: bust and, when it was taken, the underbust.
+///
+/// The underbust is optional because people measure it far less often than the
+/// bust, and a bust alone is still a data point — it is just not a cup size.
+class BodyMeasure {
+  BodyMeasure({
+    required this.id,
+    required this.timeH,
+    required this.bustCm,
+    this.underbustCm,
+    this.updatedAt,
+  });
+
+  final String id;
+  final double timeH;
+  final double bustCm;
+  final double? underbustCm;
+  int? updatedAt;
+
+  DateTime get time => dateTimeFromHours(timeH);
+
+  /// Bust minus underbust, or `null` when there is no underbust to subtract.
+  double? get differenceCm =>
+      underbustCm == null ? null : bustCm - underbustCm!;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'timeH': timeH,
+    'bustCm': bustCm,
+    if (underbustCm != null) 'underbustCm': underbustCm,
+    if (updatedAt != null) 'updatedAt': updatedAt,
+  };
+
+  static BodyMeasure? fromJson(Map<String, dynamic> json) {
+    final timeH = _num(json['timeH']);
+    final bust = _num(json['bustCm'] ?? json['bust']);
+    if (timeH == null || bust == null) return null;
+    final under = _num(json['underbustCm'] ?? json['underbust']);
+    return BodyMeasure(
+      id: (json['id'] ?? '').toString(),
+      timeH: timeH,
+      bustCm: bust,
+      underbustCm: under,
+      updatedAt: (json['updatedAt'] as num?)?.toInt(),
+    );
+  }
+
+  BodyMeasure copyWith({
+    String? id,
+    double? timeH,
+    double? bustCm,
+    double? underbustCm,
+    bool clearUnderbust = false,
+    int? updatedAt,
+  }) => BodyMeasure(
+    id: id ?? this.id,
+    timeH: timeH ?? this.timeH,
+    bustCm: bustCm ?? this.bustCm,
+    underbustCm: clearUnderbust ? null : (underbustCm ?? this.underbustCm),
     updatedAt: updatedAt ?? this.updatedAt,
   );
 }
@@ -826,6 +894,8 @@ class SimulationResult {
     required this.cpaNgMl,
     required this.tNgDl,
     required this.auc,
+    this.spiroNgMl = const [],
+    this.spiroAuc = 0,
   });
 
   final List<double> timeH;
@@ -833,6 +903,10 @@ class SimulationResult {
   final List<double> cpaNgMl;
   final List<double> tNgDl;
   final double auc;
+
+  /// Canrenone, the active metabolite of spironolactone, in ng/mL.
+  final List<double> spiroNgMl;
+  final double spiroAuc;
 
   bool get isEmpty => timeH.isEmpty;
 
@@ -848,6 +922,8 @@ class SimulationResult {
       cpaNgMl: cpa,
       tNgDl: t,
       auc: _num(json['auc']) ?? 0,
+      spiroNgMl: _numList(json['spiroNgMl']),
+      spiroAuc: _num(json['spiroAuc']) ?? 0,
     );
   }
 
@@ -883,9 +959,14 @@ class SimulationResult {
   double cpaAt(double hour) => _interp(cpaNgMl, hour);
   double tAt(double hour) => _interp(tNgDl, hour);
 
+  /// Canrenone at a moment, or zero when the record has no spironolactone.
+  double spiroAt(double hour) =>
+      spiroNgMl.isEmpty ? 0 : _interp(spiroNgMl, hour);
+
   double get e2Max => e2PgMl.isEmpty ? 0 : e2PgMl.reduce(math.max);
   double get tMax => tNgDl.isEmpty ? 0 : tNgDl.reduce(math.max);
   double get cpaMax => cpaNgMl.isEmpty ? 0 : cpaNgMl.reduce(math.max);
+  double get spiroMax => spiroNgMl.isEmpty ? 0 : spiroNgMl.reduce(math.max);
 }
 
 class CalibrationPoint {

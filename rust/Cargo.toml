@@ -1,10 +1,16 @@
 [package]
-name = "hrt_core"
-version = "1.0.0"
+name = "hrt-pk-core"
+version = "2.2.0"
 edition = "2021"
+rust-version = "1.75"
 publish = false
+description = "The pharmacokinetic core behind this app, shared with every other client"
 
+# The shared object keeps the name the Flutter app loads. The crate itself is
+# the same one published as `hrt-pk-core`; `src/` is a copy of that release, so
+# a fix made here can be lifted back verbatim.
 [lib]
+name = "hrt_core"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]

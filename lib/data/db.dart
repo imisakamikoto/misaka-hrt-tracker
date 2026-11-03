@@ -23,9 +23,28 @@ class AppDatabase {
     final path = await _databasePath();
     final db = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
+      },
+      onUpgrade: (db, from, to) async {
+        // v2 added body measurements. Nothing else changed, so the upgrade is
+        // one CREATE TABLE and existing rows are untouched.
+        if (from < 2) {
+          await db.execute('''
+            CREATE TABLE measurements(
+              id TEXT PRIMARY KEY,
+              mode TEXT NOT NULL,
+              time_h REAL NOT NULL,
+              bust_cm REAL NOT NULL,
+              underbust_cm REAL,
+              updated_at INTEGER
+            )
+          ''');
+          await db.execute(
+            'CREATE INDEX idx_measurements_mode_time ON measurements(mode, time_h)',
+          );
+        }
       },
       onCreate: (db, version) async {
         final batch = db.batch();
@@ -56,6 +75,19 @@ class AppDatabase {
           )
         ''');
         batch.execute('CREATE INDEX idx_labs_mode_time ON labs(mode, time_h)');
+        batch.execute('''
+          CREATE TABLE measurements(
+            id TEXT PRIMARY KEY,
+            mode TEXT NOT NULL,
+            time_h REAL NOT NULL,
+            bust_cm REAL NOT NULL,
+            underbust_cm REAL,
+            updated_at INTEGER
+          )
+        ''');
+        batch.execute(
+          'CREATE INDEX idx_measurements_mode_time ON measurements(mode, time_h)',
+        );
         batch.execute('''
           CREATE TABLE plan_items(
             id TEXT PRIMARY KEY,
@@ -278,6 +310,48 @@ class AppDatabase {
       whereArgs: [id, mode],
     );
     await _addTombstone('lab', id, mode);
+  }
+
+  // --- body measurements -------------------------------------------------
+
+  Future<List<BodyMeasure>> loadMeasurements(String mode) async {
+    final rows = await _db.query(
+      'measurements',
+      where: 'mode = ?',
+      whereArgs: [mode],
+      orderBy: 'time_h ASC',
+    );
+    return rows
+        .map(
+          (row) => BodyMeasure(
+            id: row['id'] as String,
+            timeH: (row['time_h'] as num).toDouble(),
+            bustCm: (row['bust_cm'] as num).toDouble(),
+            underbustCm: (row['underbust_cm'] as num?)?.toDouble(),
+            updatedAt: (row['updated_at'] as num?)?.toInt(),
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> upsertMeasurement(String mode, BodyMeasure m) async {
+    await _db.insert('measurements', {
+      'id': m.id,
+      'mode': mode,
+      'time_h': m.timeH,
+      'bust_cm': m.bustCm,
+      'underbust_cm': m.underbustCm,
+      'updated_at': m.updatedAt ?? DateTime.now().millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<void> deleteMeasurement(String mode, String id) async {
+    await _db.delete(
+      'measurements',
+      where: 'id = ? AND mode = ?',
+      whereArgs: [id, mode],
+    );
+    await _addTombstone('measurement', id, mode);
   }
 
   // --- plan --------------------------------------------------------------
@@ -514,6 +588,7 @@ class AppDatabase {
       for (final table in [
         'doses',
         'labs',
+        'measurements',
         'plan_items',
         'supplies',
         'quick_doses',
@@ -530,6 +605,7 @@ class AppDatabase {
     required String mode,
     List<DoseEvent>? doses,
     List<LabResult>? labs,
+    List<BodyMeasure>? measurements,
     List<PlanItem>? plan,
     List<Supply>? supplies,
     List<QuickDose>? quickDoses,
@@ -602,6 +678,25 @@ class AppDatabase {
               )
               .toList(),
           labs.map((l) => l.id).toList(),
+        );
+      }
+      if (measurements != null) {
+        await put(
+          'measurements',
+          measurements
+              .map(
+                (m) => <String, Object?>{
+                  'id': m.id,
+                  'mode': mode,
+                  'time_h': m.timeH,
+                  'bust_cm': m.bustCm,
+                  'underbust_cm': m.underbustCm,
+                  'updated_at':
+                      m.updatedAt ?? DateTime.now().millisecondsSinceEpoch,
+                },
+              )
+              .toList(),
+          measurements.map((m) => m.id).toList(),
         );
       }
       if (plan != null) {

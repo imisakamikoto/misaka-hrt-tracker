@@ -3,8 +3,8 @@
 version = 4
 
 [[package]]
-name = "hrt_core"
-version = "1.0.0"
+name = "hrt-pk-core"
+version = "2.2.0"
 dependencies = [
  "serde",
  "serde_json",

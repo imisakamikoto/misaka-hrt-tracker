@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
+import 'blockade_page.dart';
 import 'dose_page.dart';
 import 'forecast_page.dart';
 import 'history_page.dart';
@@ -55,6 +56,9 @@ class _AppShellState extends State<AppShell> {
         onOpenLabs: () => _go(3),
         onLogDose: _logDose,
         onOpenForecast: () => _go(2),
+        onOpenBlockade: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const BlockadePage()),
+        ),
       ),
       const HistoryPage(),
       const ForecastPage(),

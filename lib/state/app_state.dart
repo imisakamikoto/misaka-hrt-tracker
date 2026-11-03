@@ -7,8 +7,10 @@ import 'package:flutter/foundation.dart';
 import '../data/backup.dart';
 import '../data/db.dart';
 import '../data/models.dart';
+import '../ui/widgets/common.dart';
 import '../core/domain.dart';
 import '../core/engine_ffi.dart';
+import '../core/engine_models.dart';
 import '../core/boot.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
@@ -20,6 +22,10 @@ class AppState extends ChangeNotifier {
 
   final AppDatabase _db;
   final HrtEngine _engine;
+
+  /// The engine, for screens that ask it something the state does not keep —
+  /// a one-off long-horizon report, for instance.
+  HrtEngine get engine => _engine;
 
   bool ready = false;
   bool computing = false;
@@ -53,6 +59,10 @@ class AppState extends ChangeNotifier {
   // --- data --------------------------------------------------------------
   final Map<String, List<DoseEvent>> _doses = {'transfem': [], 'transmasc': []};
   final Map<String, List<LabResult>> _labs = {'transfem': [], 'transmasc': []};
+  final Map<String, List<BodyMeasure>> _measures = {
+    'transfem': [],
+    'transmasc': [],
+  };
   final Map<String, List<PlanItem>> _plan = {'transfem': [], 'transmasc': []};
   final Map<String, List<Supply>> _supplies = {'transfem': [], 'transmasc': []};
   final Map<String, List<QuickDose>> _quick = {'transfem': [], 'transmasc': []};
@@ -63,6 +73,18 @@ class AppState extends ChangeNotifier {
 
   SimulationResult? sim;
   CalibrationResult? calibration;
+
+  /// Anti-androgen assessment for the current mode, or null when the record
+  /// holds none. Computed by the core so the app never invents a dose band.
+  BlockadeReport? blockade;
+
+  /// Bust/underbust report for the current mode, or null when nothing has been
+  /// measured. Independent of the dose record: it is about the body, not the
+  /// curve, so it is computed even on a record with no doses.
+  BodyReport? bodyReport;
+
+  /// Which national cup convention is shown first: `cn`, `eu`, `uk` or `us`.
+  String cupSystem = 'cn';
 
   int _computeToken = 0;
   Timer? _clock;
@@ -98,6 +120,8 @@ class AppState extends ChangeNotifier {
 
   List<DoseEvent> get doses => List.unmodifiable(_doses[mode] ?? const []);
   List<LabResult> get labs => List.unmodifiable(_labs[mode] ?? const []);
+  List<BodyMeasure> get measurements =>
+      List.unmodifiable(_measures[mode] ?? const []);
   List<PlanItem> get plan => List.unmodifiable(_plan[mode] ?? const []);
   List<Supply> get supplies => List.unmodifiable(_supplies[mode] ?? const []);
   List<QuickDose> get quickDoses => List.unmodifiable(_quick[mode] ?? const []);
@@ -141,6 +165,7 @@ class AppState extends ChangeNotifier {
       for (final m in ['transfem', 'transmasc']) {
         _doses[m] = await _db.loadDoses(m);
         _labs[m] = await _db.loadLabs(m);
+        _measures[m] = await _db.loadMeasurements(m);
         _plan[m] = await _db.loadPlan(m);
         _supplies[m] = await _db.loadSupplies(m);
         _quick[m] = await _db.loadQuickDoses(m);
@@ -162,6 +187,8 @@ class AppState extends ChangeNotifier {
 
   void _applySettings(Map<String, dynamic> s) {
     mode = (s['mode'] == 'transmasc') ? 'transmasc' : 'transfem';
+    final cup = s['cupSystem'];
+    cupSystem = (cup == 'eu' || cup == 'uk' || cup == 'us') ? cup as String : 'cn';
     weight = (s['weight'] as num?)?.toDouble() ?? 70;
     birthYear = (s['birthYear'] as num?)?.toInt();
     theme = (s['theme'] ?? 'system').toString();
@@ -449,6 +476,43 @@ class AppState extends ChangeNotifier {
     await recompute();
   }
 
+  // --- body measurements ------------------------------------------------
+
+  Future<void> saveMeasurement(BodyMeasure measure) async {
+    final stamped = measure.copyWith(
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    await _db.upsertMeasurement(mode, stamped);
+    final list = <BodyMeasure>[...(_measures[mode] ?? const [])];
+    final index = list.indexWhere((e) => e.id == stamped.id);
+    if (index >= 0) {
+      list[index] = stamped;
+    } else {
+      list.add(stamped);
+    }
+    list.sort((a, b) => a.timeH.compareTo(b.timeH));
+    _measures[mode] = list;
+    notifyListeners();
+    await recompute();
+  }
+
+  Future<void> deleteMeasurement(String id) async {
+    await _db.deleteMeasurement(mode, id);
+    _measures[mode] = (_measures[mode] ?? const [])
+        .where((e) => e.id != id)
+        .toList();
+    notifyListeners();
+    await recompute();
+  }
+
+  Future<void> setCupSystem(String value) async {
+    if (value == cupSystem) return;
+    cupSystem = value;
+    await _set('cupSystem', value);
+    notifyListeners();
+    await recompute();
+  }
+
   // --- plan --------------------------------------------------------------
 
   Future<void> savePlanItem(PlanItem item) async {
@@ -517,10 +581,23 @@ class AppState extends ChangeNotifier {
     try {
       final events = doses;
       final results = labs;
+
+      // The body report does not depend on any dose, so it is computed before
+      // the record is checked: someone who measures without logging still gets
+      // a cup size.
+      final measures = measurements;
+      bodyReport = measures.isEmpty
+          ? null
+          : await _engine.body(
+              measurements: measures,
+              system: cupSystem,
+              weightKg: weight,
+            );
       if (events.isEmpty) {
         if (token == _computeToken) {
           sim = null;
           calibration = null;
+          blockade = null;
           computing = false;
           notifyListeners();
         }
@@ -557,6 +634,22 @@ class AppState extends ChangeNotifier {
       if (token != _computeToken) return;
       sim = base;
       calibration = cal;
+
+      // The anti-androgen assessment is independent of the oestrogen curve: it
+      // runs on the same record but answers a different question, and only
+      // when there is an anti-androgen to answer it about.
+      BlockadeReport? block;
+      if (events.any((e) => e.ester.isAntiAndrogen)) {
+        block = await _engine.blockade(
+          events: events,
+          bodyWeightKg: weight,
+          birthYear: birthYear,
+          params: effectivePkParams,
+          clearanceMult: cal?.clearanceMult ?? 1,
+        );
+      }
+      if (token != _computeToken) return;
+      blockade = block;
       coreError = null;
     } catch (e) {
       coreError = e.toString();
@@ -588,9 +681,63 @@ class AppState extends ChangeNotifier {
   Future<void> refreshReminders() async {
     if (!notifyEnabled) return;
     try {
-      final planItems = plan;
-      if (planItems.isEmpty) return;
       final now = DateTime.now();
+      final l10n = L10n(lang);
+      final planItems = plan;
+
+      // Anti-androgen doses are reminded by the clock, not by the curve: a
+      // receptor blocker has no threshold to cross, and the level staying high
+      // says nothing about whether the next tablet was taken. The core already
+      // works out when the next dose is due and how late it is.
+      final due = <LevelGuardReminder>[];
+      final block = blockade;
+      if (block != null) {
+        for (final compound in block.compounds) {
+          final ester = Ester.tryParse(compound.ester);
+          final label = ester == null
+              ? compound.name
+              : esterLabel(ester, lang);
+          if (compound.overdueH > 1) {
+            due.add(
+              LevelGuardReminder(
+                at: now.add(const Duration(minutes: 1)),
+                title: l10n.t('blockade.dueTitle'),
+                body: l10n
+                    .t('blockade.dueOverdue')
+                    .replaceAll('{drug}', label)
+                    .replaceAll(
+                      '{hours}',
+                      compound.overdueH.toStringAsFixed(0),
+                    ),
+              ),
+            );
+          } else if (compound.nextDue != null) {
+            final at = compound.nextDue!.subtract(
+              Duration(minutes: notifyLeadMinutes),
+            );
+            due.add(
+              LevelGuardReminder(
+                at: at.isBefore(now)
+                    ? now.add(const Duration(minutes: 2))
+                    : at,
+                title: l10n.t('blockade.dueTitle'),
+                body: l10n
+                    .t('blockade.dueBody')
+                    .replaceAll('{drug}', label)
+                    .replaceAll('{mg}', formatDose(compound.doseMG)),
+              ),
+            );
+          }
+        }
+      }
+
+      if (planItems.isEmpty) {
+        if (notifyDoseDue) {
+          await NotificationService.instance.scheduleDoseDue(due);
+        }
+        return;
+      }
+
       final future = futurePlanDoses(
         planItems,
         now,
@@ -620,7 +767,7 @@ class AppState extends ChangeNotifier {
         horizonDays: 14,
       );
 
-      final l10n = L10n(lang);
+      final l10nText = l10n;
       final reminders = <LevelGuardReminder>[];
       for (final drop in drops) {
         final at = drop.at.subtract(Duration(minutes: notifyLeadMinutes));
@@ -630,22 +777,21 @@ class AppState extends ChangeNotifier {
         reminders.add(
           LevelGuardReminder(
             at: when,
-            title: l10n.t('settings.notifyEnable'),
+            title: l10nText.t('settings.notifyEnable'),
             body: isTransfem
-                ? '${l10n.t('home.current')}: ${drop.level.toStringAsFixed(0)} pg/mL — ${l10n.t('home.logDose')}'
-                : '${l10n.t('home.current')}: ${drop.level.toStringAsFixed(0)} ng/dL — ${l10n.t('home.logDose')}',
+                ? '${l10nText.t('home.current')}: ${drop.level.toStringAsFixed(0)} pg/mL — ${l10nText.t('home.logDose')}'
+                : '${l10nText.t('home.current')}: ${drop.level.toStringAsFixed(0)} ng/dL — ${l10nText.t('home.logDose')}',
           ),
         );
       }
       await NotificationService.instance.scheduleLevelGuards(reminders);
 
       if (notifyDoseDue) {
-        final due = <LevelGuardReminder>[];
         for (final event in future.take(12)) {
           due.add(
             LevelGuardReminder(
               at: event.time,
-              title: l10n.t('home.today'),
+              title: l10nText.t('home.today'),
               body: '${formatDose(event.doseMG)} mg ${event.ester.label}',
             ),
           );
@@ -784,6 +930,7 @@ class AppState extends ChangeNotifier {
         mode: m,
         doses: data.doses,
         labs: data.labs,
+        measurements: data.measurements,
         plan: data.plan,
         supplies: data.supplies,
         quickDoses: data.quickDoses,

@@ -47,6 +47,7 @@ class ModeData {
   ModeData({
     this.doses = const [],
     this.labs = const [],
+    this.measurements = const [],
     this.plan = const [],
     this.supplies = const [],
     this.quickDoses = const [],
@@ -55,6 +56,7 @@ class ModeData {
 
   final List<DoseEvent> doses;
   final List<LabResult> labs;
+  final List<BodyMeasure> measurements;
   final List<PlanItem> plan;
   final List<Supply> supplies;
   final List<QuickDose> quickDoses;
@@ -63,6 +65,7 @@ class ModeData {
   int get total =>
       doses.length +
       labs.length +
+      measurements.length +
       plan.length +
       supplies.length +
       quickDoses.length +
@@ -73,6 +76,7 @@ class ModeData {
   Map<String, dynamic> toJson() => {
     'events': doses.map((e) => e.toJson()).toList(),
     'labResults': labs.map((e) => e.toJson()).toList(),
+    'bodyMeasurements': measurements.map((e) => e.toJson()).toList(),
     'doseTemplates': templates.map((e) => e.toJson()).toList(),
     'quickDoses': quickDoses.map((e) => e.toJson()).toList(),
     'supplies': supplies.map((e) => e.toJson()).toList(),
@@ -267,6 +271,7 @@ abstract final class BackupCodec {
     return ModeData(
       doses: parse(map['events'], DoseEvent.fromJson),
       labs: parse(map['labResults'], LabResult.fromJson),
+      measurements: parse(map['bodyMeasurements'], BodyMeasure.fromJson),
       plan: parse(map['plan'], PlanItem.fromJson),
       supplies: parse(map['supplies'], Supply.fromJson),
       quickDoses: parse(map['quickDoses'], QuickDose.fromJson),
