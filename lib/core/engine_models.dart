@@ -27,6 +27,14 @@ int _int(Object? v, [int fallback = 0]) {
 
 String _str(Object? v, [String fallback = '']) => v?.toString() ?? fallback;
 
+/// A milligram field, under either spelling.
+///
+/// The app writes the unit in capitals everywhere (`doseMG`), and the core now
+/// emits that spelling too, but a library built before the fix spelled it
+/// `doseMg`. Reading only one of them silently turned every amount into zero,
+/// which is worse than either spelling, so both are accepted.
+double _mg(Map json, String base) => _num(json['${base}MG'] ?? json['${base}Mg']);
+
 /// A band the level is meant to stay inside, in the model's own unit.
 class TargetRange {
   const TargetRange(this.low, this.high);
@@ -433,9 +441,9 @@ class SupplyRunway {
   static SupplyRunway? fromJson(Object? json) {
     if (json is! Map) return null;
     return SupplyRunway(
-      onHandMG: _num(json['onHandMG']),
-      dailyMG: _num(json['dailyMG']),
-      weeklyMG: _num(json['weeklyMG']),
+      onHandMG: _mg(json, 'onHand'),
+      dailyMG: _mg(json, 'daily'),
+      weeklyMG: _mg(json, 'weekly'),
       dosesRemaining: _int(json['dosesRemaining']),
       daysRemaining: _num(json['daysRemaining']),
       runOutH: _num(json['runOutH']),
@@ -945,13 +953,13 @@ class BlockadeCompound {
       ester: _str(json['ester']),
       name: _str(json['name']),
       modelled: json['modelled'] == true,
-      doseMG: _num(json['doseMG']),
+      doseMG: _mg(json, 'dose'),
       intervalH: _num(json['intervalH']),
-      dailyMG: _num(json['dailyMG']),
+      dailyMG: _mg(json, 'daily'),
       band: _str(json['band'], 'typical'),
-      bandLowMG: _num(json['bandLowMG']),
-      bandHighMG: _num(json['bandHighMG']),
-      bandCeilingMG: _num(json['bandCeilingMG']),
+      bandLowMG: _mg(json, 'bandLow'),
+      bandHighMG: _mg(json, 'bandHigh'),
+      bandCeilingMG: _mg(json, 'bandCeiling'),
       level: CurveStats.fromJson(json['level']),
       coveragePct: _num(json['coveragePct']),
       expected: _int(json['expected']),

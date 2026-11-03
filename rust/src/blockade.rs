@@ -132,15 +132,24 @@ pub struct BlockadeCompound {
     /// Whether the engine produces a curve for this compound.
     pub modelled: bool,
     /// The most recent dose in the window, in mg.
+    ///
+    /// The app, the backups and this crate's own API document spell the unit
+    /// in capitals, so that is what goes out on the wire; `doseMg` is still
+    /// accepted on the way in for a client that read the old shape.
+    #[serde(rename = "doseMG", alias = "doseMg")]
     pub dose_mg: f64,
     /// Median spacing between doses, in hours.
     pub interval_h: f64,
-    /// Total dose in the window divided by its length.
+    /// Total dose in the window divided by the days it covers.
+    #[serde(rename = "dailyMG", alias = "dailyMg")]
     pub daily_mg: f64,
     /// `low`, `typical`, `high` or `aboveCeiling`.
     pub band: &'static str,
+    #[serde(rename = "bandLowMG", alias = "bandLowMg")]
     pub band_low_mg: f64,
+    #[serde(rename = "bandHighMG", alias = "bandHighMg")]
     pub band_high_mg: f64,
+    #[serde(rename = "bandCeilingMG", alias = "bandCeilingMg")]
     pub band_ceiling_mg: f64,
     /// Peak/trough/mean of the modelled curve, when there is one.
     pub level: Option<CurveStats>,
@@ -262,7 +271,11 @@ pub fn assess(input: BlockadeInput<'_>) -> BlockadeReport {
     // One simulation covers every compound that has a curve.
     let sim = run_simulation_grid(
         input.events,
-        if input.weight > 0.0 { input.weight } else { 70.0 },
+        if input.weight > 0.0 {
+            input.weight
+        } else {
+            70.0
+        },
         input.birth_year,
         input.params,
         input.now_h,
@@ -295,7 +308,21 @@ pub fn assess(input: BlockadeInput<'_>) -> BlockadeReport {
             .filter(|e| e.ester == ester && e.dose_mg > 0.0 && e.time_h >= window_start)
             .collect();
         let window_mg: f64 = in_window.iter().map(|e| e.dose_mg).sum();
-        let daily_mg = window_mg / window_days;
+        // Divide by the part of the window the record actually covers, not by
+        // the whole window. A single 120 mg dose logged today is 120 mg a day;
+        // averaging it over 28 days reads as 4 mg a day and calls a normal dose
+        // sub-threshold. How fully the window is filled is what coverage
+        // reports, and it already says so separately.
+        let first_h = in_window
+            .iter()
+            .map(|e| e.time_h)
+            .fold(f64::INFINITY, f64::min);
+        let covered_days = if first_h.is_finite() {
+            ((input.now_h - first_h) / 24.0).clamp(1.0, window_days)
+        } else {
+            window_days
+        };
+        let daily_mg = window_mg / covered_days;
 
         let last = *times.last().unwrap_or(&input.now_h);
         let next_due = last + interval;
@@ -359,10 +386,7 @@ pub fn assess(input: BlockadeInput<'_>) -> BlockadeReport {
             ));
         }
         if overdue > 0.0 {
-            notes.push(format!(
-                "The next dose was due {:.0} h ago.",
-                overdue
-            ));
+            notes.push(format!("The next dose was due {:.0} h ago.", overdue));
         }
         if ester == Ester::SPIRO {
             notes.push(
@@ -503,5 +527,59 @@ mod tests {
         let spiro = report.compounds.first().expect("a compound");
         assert_eq!(spiro.band, "low");
         assert_eq!(spiro.verdict, "lowDose");
+    }
+
+    #[test]
+    fn one_dose_today_reads_as_that_dose_per_day() {
+        let now = 1000.0 * 24.0;
+        // Logged two hours ago: the record covers one day, not twenty-eight.
+        // 120 mg a day is a normal spironolactone regimen, and the average must
+        // not turn it into 4 mg a day just because the window is long.
+        let events = vec![dose(Ester::SPIRO, 120.0, now - 2.0)];
+        let report = assess(BlockadeInput {
+            events: &events,
+            params: &PkParams::default(),
+            weight: 70.0,
+            birth_year: None,
+            now_h: now,
+            clearance_mult: 1.0,
+            window_days: 28.0,
+        });
+        let spiro = report.compounds.first().expect("a compound");
+        assert!(
+            (spiro.daily_mg - 120.0).abs() < 1e-9,
+            "daily {}",
+            spiro.daily_mg
+        );
+        assert_eq!(spiro.band, "typical");
+        // A single dose is not a covered window, and the verdict says so.
+        assert_eq!(spiro.verdict, "coverage");
+        assert!(spiro.coverage_pct < 10.0);
+    }
+
+    #[test]
+    fn the_payload_spells_milligrams_the_way_the_docs_do() {
+        let now = 1000.0 * 24.0;
+        let events = vec![dose(Ester::SPIRO, 100.0, now - 2.0)];
+        let report = assess(BlockadeInput {
+            events: &events,
+            params: &PkParams::default(),
+            weight: 70.0,
+            birth_year: None,
+            now_h: now,
+            clearance_mult: 1.0,
+            window_days: 28.0,
+        });
+        let json = serde_json::to_value(&report.compounds[0]).expect("json");
+        for key in [
+            "doseMG",
+            "dailyMG",
+            "bandLowMG",
+            "bandHighMG",
+            "bandCeilingMG",
+        ] {
+            assert!(json.get(key).and_then(|v| v.as_f64()).is_some(), "{key}");
+        }
+        assert!(json.get("dailyMg").is_none(), "one spelling, not two");
     }
 }

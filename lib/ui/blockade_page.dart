@@ -515,6 +515,10 @@ class _ProgressTable extends StatelessWidget {
     final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    // Suppression is a measurement, not a consequence of the drug list. With
+    // no testosterone result in any window every row would read "—" and look
+    // broken, so the table says why instead of leaving it to be guessed.
+    final hasTLabs = report.windows.any((w) => w.tLabsN > 0);
 
     return Card(
       child: Padding(
@@ -584,6 +588,13 @@ class _ProgressTable extends StatelessWidget {
                   .replaceAll('{value}', report.tCeilingNgDl.toStringAsFixed(0)),
               style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
+            if (!hasTLabs) ...[
+              const SizedBox(height: 6),
+              Text(
+                l10n.t('progress.noTLabs'),
+                style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ],
           ],
         ),
       ),

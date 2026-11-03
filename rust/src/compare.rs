@@ -40,13 +40,18 @@ pub struct ArmReport {
     pub analyte: Option<&'static str>,
     pub ester: &'static str,
     pub route: &'static str,
+    /// Spelled `doseMG` on the wire, like every other payload in this crate.
+    #[serde(rename = "doseMG", alias = "doseMg")]
     pub dose_mg: f64,
     pub interval_h: f64,
     /// `dose_mg × 24 / interval_h`.
+    #[serde(rename = "dailyMG", alias = "dailyMg")]
     pub daily_mg: f64,
+    #[serde(rename = "weeklyMG", alias = "weeklyMg")]
     pub weekly_mg: f64,
     /// Milligrams of active hormone per day, after the ester's weight is
     /// removed. The only figure that compares esters fairly.
+    #[serde(rename = "activeDailyMG", alias = "activeDailyMg")]
     pub active_daily_mg: f64,
     pub modelled: bool,
     /// True when two consecutive cycles agreed to within 1%.
@@ -186,7 +191,12 @@ pub fn compare(input: CompareInput) -> CompareReport {
         };
 
         let (stable, cycles, accumulation_ratio, curve) = match (&report, analyte) {
-            (Some(r), Some(a)) => (r.stable, r.cycles, r.accumulation_ratio, curve_for(&r.cycle, a)),
+            (Some(r), Some(a)) => (
+                r.stable,
+                r.cycles,
+                r.accumulation_ratio,
+                curve_for(&r.cycle, a),
+            ),
             _ => (false, 0, 0.0, None),
         };
 
@@ -227,8 +237,16 @@ pub fn compare(input: CompareInput) -> CompareReport {
         .iter()
         .filter(|a| a.stable)
         .min_by(|a, b| {
-            let fa = a.curve.as_ref().map(|c| c.fluctuation_pct).unwrap_or(f64::MAX);
-            let fb = b.curve.as_ref().map(|c| c.fluctuation_pct).unwrap_or(f64::MAX);
+            let fa = a
+                .curve
+                .as_ref()
+                .map(|c| c.fluctuation_pct)
+                .unwrap_or(f64::MAX);
+            let fb = b
+                .curve
+                .as_ref()
+                .map(|c| c.fluctuation_pct)
+                .unwrap_or(f64::MAX);
             fa.partial_cmp(&fb).unwrap_or(std::cmp::Ordering::Equal)
         })
         .map(|a| a.label.clone());
@@ -334,5 +352,15 @@ mod tests {
             .map(|i| arm(1.0 + i as f64, 168.0, Ester::EV, Route::Injection))
             .collect();
         assert_eq!(run(arms).arms.len(), MAX_ARMS);
+    }
+
+    #[test]
+    fn the_payload_spells_milligrams_the_way_the_docs_do() {
+        let report = run(vec![arm(4.0, 168.0, Ester::EV, Route::Injection)]);
+        let json = serde_json::to_value(&report.arms[0]).expect("json");
+        for key in ["doseMG", "dailyMG", "weeklyMG", "activeDailyMG"] {
+            assert!(json.get(key).and_then(|v| v.as_f64()).is_some(), "{key}");
+        }
+        assert!(json.get("dailyMg").is_none(), "one spelling, not two");
     }
 }

@@ -228,6 +228,7 @@ impl Objective {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DoseSolution {
+    #[serde(rename = "doseMG", alias = "doseMg")]
     pub dose_mg: f64,
     pub objective: String,
     pub achieved_peak: f64,
@@ -449,8 +450,13 @@ pub fn adherence(
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SupplyReport {
+    /// The unit is spelled in capitals because that is the shape the app and
+    /// the API document use; `onHandMg` is accepted for older callers.
+    #[serde(rename = "onHandMG", alias = "onHandMg")]
     pub on_hand_mg: f64,
+    #[serde(rename = "dailyMG", alias = "dailyMg")]
     pub daily_mg: f64,
+    #[serde(rename = "weeklyMG", alias = "weeklyMg")]
     pub weekly_mg: f64,
     pub doses_remaining: usize,
     pub days_remaining: f64,
@@ -518,6 +524,7 @@ pub fn simulate_with_stats(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     fn weekly_ev() -> Schedule {
         Schedule {
@@ -590,5 +597,23 @@ mod tests {
         assert_eq!(report.taken, 3);
         assert!((report.coverage_pct - 60.0).abs() < 1e-6);
         assert!(report.longest_gap_h >= 168.0);
+    }
+
+    #[test]
+    fn a_supply_report_spells_milligrams_the_way_the_docs_do() {
+        let sched = Schedule {
+            route: Route::Oral,
+            ester: Ester::SPIRO,
+            dose_mg: 100.0,
+            interval_h: 24.0,
+            extras: HashMap::new(),
+            start_h: 0.0,
+        };
+        let report = supply(3000.0, &sched, 0.0).expect("a report");
+        let json = serde_json::to_value(&report).expect("json");
+        assert_eq!(json["onHandMG"], json!(3000.0));
+        assert!(json.get("dailyMG").and_then(|v| v.as_f64()).is_some());
+        assert!(json.get("weeklyMG").and_then(|v| v.as_f64()).is_some());
+        assert!(json.get("onHandMg").is_none(), "one spelling, not two");
     }
 }
