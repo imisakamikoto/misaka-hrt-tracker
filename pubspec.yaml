@@ -51,7 +51,7 @@ dependencies:
   ffi: ^2.2.0
   flutter_localizations:
     sdk: flutter
-  sqflite_common_ffi: ^2.4.5
+  sqflite_common_ffi: ^2.4.7
   sqlite3_flutter_libs: ^0.6.0+eol
 
 dev_dependencies:
