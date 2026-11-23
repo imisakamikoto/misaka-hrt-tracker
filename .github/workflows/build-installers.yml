@@ -79,7 +79,7 @@ jobs:
             echo "$abi core ok ($(stat -c%s "$so" 2>/dev/null || stat -f%z "$so") bytes)"
           done
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: apk
           path: dist/*.apk
@@ -123,7 +123,7 @@ jobs:
           zip -qry "Misaka-hrt-${{ steps.version.outputs.value }}-ios.ipa" Payload
           ls -lh *.ipa
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ipa
           path: '*.ipa'
@@ -157,7 +157,7 @@ jobs:
           $version = ((Select-String -Path pubspec.yaml -Pattern '^version:').Line -split ':')[1].Trim() -split '\+' | Select-Object -First 1
           ./packaging/windows/build_msi.ps1 -Version $version -OutFile "dist/Misaka-hrt-$version-windows-x64.msi"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: msi
           path: dist/*.msi
